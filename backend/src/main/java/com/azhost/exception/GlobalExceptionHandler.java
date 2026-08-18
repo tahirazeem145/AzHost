@@ -29,7 +29,21 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
     }
 
+    @ExceptionHandler(ProjectSourceNotAvailableException.class)
+    public ResponseEntity<ErrorResponseDto> handleProjectSourceNotAvailable(ProjectSourceNotAvailableException ex, HttpServletRequest request) {
+        logger.warn("Project source not available for analysis: {}", ex.getMessage());
+        ErrorResponseDto error = new ErrorResponseDto(
+                LocalDateTime.now(),
+                HttpStatus.CONFLICT.value(),
+                ex.getErrorCode(),
+                ex.getMessage(),
+                request.getRequestURI()
+        );
+        return new ResponseEntity<>(error, HttpStatus.CONFLICT);
+    }
+
     @ExceptionHandler(DuplicateProjectSlugException.class)
+
     public ResponseEntity<ErrorResponseDto> handleDuplicateProjectSlug(DuplicateProjectSlugException ex, HttpServletRequest request) {
         logger.warn("Duplicate project slug conflict: {}", ex.getMessage());
         ErrorResponseDto error = new ErrorResponseDto(

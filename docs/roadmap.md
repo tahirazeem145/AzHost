@@ -9,7 +9,7 @@ This roadmap outlines the 10-phase progression for building **AZHost**, from ini
 - Build system activity feeds, filterable logs, and UI dark/light mode toggles.
 - Add user profile management UI and notification banners.
 
-## Phase 3 — Project Management & Repository Import
+## Phase 3 — Project Management & Repository Import [COMPLETED]
 - Implement `projects` and `environment_variables` database entities and REST endpoints.
 - Support manual repository linking (Git HTTPS/SSH clone URLs).
 - Build environment variable configuration UI with encrypted storage.

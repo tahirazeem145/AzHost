@@ -1,0 +1,11 @@
+{
+  "name": "sample-angular",
+  "version": "0.0.0",
+  "scripts": {
+    "ng": "ng",
+    "build": "ng build"
+  },
+  "dependencies": {
+    "@angular/core": "^17.0.0"
+  }
+}
