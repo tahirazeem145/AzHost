@@ -55,6 +55,46 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(error, HttpStatus.CONFLICT);
     }
 
+    @ExceptionHandler(BuildNotSuccessfulException.class)
+    public ResponseEntity<ErrorResponseDto> handleBuildNotSuccessful(BuildNotSuccessfulException ex, HttpServletRequest request) {
+        logger.warn("Build not successful for deployment: {}", ex.getMessage());
+        ErrorResponseDto error = new ErrorResponseDto(
+                LocalDateTime.now(),
+                HttpStatus.CONFLICT.value(),
+                ex.getErrorCode(),
+                ex.getMessage(),
+                request.getRequestURI()
+        );
+        return new ResponseEntity<>(error, HttpStatus.CONFLICT);
+    }
+
+    @ExceptionHandler(DeploymentAlreadyInProgressException.class)
+    public ResponseEntity<ErrorResponseDto> handleDeploymentAlreadyInProgress(DeploymentAlreadyInProgressException ex, HttpServletRequest request) {
+        logger.warn("Deployment already in progress: {}", ex.getMessage());
+        ErrorResponseDto error = new ErrorResponseDto(
+                LocalDateTime.now(),
+                HttpStatus.CONFLICT.value(),
+                ex.getErrorCode(),
+                ex.getMessage(),
+                request.getRequestURI()
+        );
+        return new ResponseEntity<>(error, HttpStatus.CONFLICT);
+    }
+
+    @ExceptionHandler(DeploymentNotFoundException.class)
+    public ResponseEntity<ErrorResponseDto> handleDeploymentNotFound(DeploymentNotFoundException ex, HttpServletRequest request) {
+        logger.warn("Deployment not found: {}", ex.getMessage());
+        ErrorResponseDto error = new ErrorResponseDto(
+                LocalDateTime.now(),
+                HttpStatus.NOT_FOUND.value(),
+                "DEPLOYMENT_NOT_FOUND",
+                ex.getMessage(),
+                request.getRequestURI()
+        );
+        return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
+    }
+
+
     @ExceptionHandler(BuildEngineUnavailableException.class)
     public ResponseEntity<ErrorResponseDto> handleBuildEngineUnavailable(BuildEngineUnavailableException ex, HttpServletRequest request) {
         logger.error("Build engine unavailable: {}", ex.getMessage());

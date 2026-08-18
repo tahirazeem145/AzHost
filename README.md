@@ -11,7 +11,9 @@ AZHost is a developer-friendly alternative to platforms such as Vercel and Netli
 - [x] **Phase 2 — Project Management**: Full project lifecycle (Create, List, Search, View Details, Edit, Delete) with PostgreSQL relational persistence, Flyway migrations, and REST APIs.
 - [x] **Phase 3 — Project Detection & Analysis**: Safe, non-executing metadata inspection engine detecting framework, build tool, package manager, Node version, commands, and output directories.
 - [x] **Phase 4 — Source Acquisition & Build Engine**: Isolated Two-Container Docker build pipeline with ZIP-Slip protection, resource caps, network isolation, artifact packaging, and live log terminal.
-- [ ] **Phase 5 — Deployment Engine & Static Hosting**: Live containerized deployment and artifact serving.
+- [x] **Phase 5 — Artifact Deployment & Static Hosting Engine**: Immutable static deployment publishing, ZIP bomb & symlink containment security, instant rollbacks, and live static HTTP serving.
+- [ ] **Phase 6 — Custom Domains & Production Nginx Routing**: Custom CNAME routing and Let's Encrypt SSL.
+
 
 
 

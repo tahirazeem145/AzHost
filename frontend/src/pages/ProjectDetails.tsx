@@ -4,9 +4,11 @@ import { DashboardLayout } from '../layouts/DashboardLayout';
 import { Project, UpdateProjectRequest } from '../types/project';
 import { ProjectAnalysisResult, AnalysisUIStatus } from '../types/projectAnalysis';
 import { ProjectBuild } from '../types/build';
+import { ProjectDeployment } from '../types/deployment';
 import { projectService } from '../services/projectService';
 import { projectAnalysisService } from '../services/projectAnalysisService';
 import { buildService } from '../services/buildService';
+import { deploymentService } from '../services/deploymentService';
 import { useNotification } from '../context/NotificationContext';
 import { EditProjectModal } from '../components/EditProjectModal';
 import { DeleteConfirmationModal } from '../components/DeleteConfirmationModal';
@@ -14,7 +16,10 @@ import { ProjectAnalysisCard } from '../components/ProjectAnalysisCard';
 import { BuildStatusBadge } from '../components/BuildStatusBadge';
 import { BuildLogViewer } from '../components/BuildLogViewer';
 import { BuildHistoryList } from '../components/BuildHistoryList';
-import { ArrowLeft, Edit3, Trash2, Sparkles, Info, Loader2, Hammer, PackageCheck } from 'lucide-react';
+import { DeploymentProgress } from '../components/DeploymentProgress';
+import { DeploymentUrlCard } from '../components/DeploymentUrlCard';
+import { DeploymentHistoryList } from '../components/DeploymentHistoryList';
+import { ArrowLeft, Edit3, Trash2, Sparkles, Info, Loader2, Hammer, Rocket, PackageCheck } from 'lucide-react';
 
 export const ProjectDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -32,13 +37,19 @@ export const ProjectDetails: React.FC = () => {
   const [isLogTruncated, setIsLogTruncated] = useState(false);
   const [isStartingBuild, setIsStartingBuild] = useState(false);
 
+  // Phase 5 Deployment Engine States
+  const [deployments, setDeployments] = useState<ProjectDeployment[]>([]);
+  const [activeDeployment, setActiveDeployment] = useState<ProjectDeployment | null>(null);
+  const [isDeploying, setIsDeploying] = useState(false);
+  const [isRollingBack, setIsRollingBack] = useState(false);
+
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
-  const pollIntervalRef = useRef<any>(null);
-
+  const buildPollRef = useRef<any>(null);
+  const deployPollRef = useRef<any>(null);
 
   const fetchProjectData = useCallback(async () => {
     if (!id) return;
@@ -74,6 +85,18 @@ export const ProjectDetails: React.FC = () => {
         // Build history optional on initial load
       }
 
+      // Fetch deployment history
+      try {
+        const depListRes = await deploymentService.getDeployments(id);
+        setDeployments(depListRes.deployments || []);
+        if (depListRes.deployments && depListRes.deployments.length > 0) {
+          const activeDep = depListRes.deployments.find(d => d.active) || depListRes.deployments[0];
+          setActiveDeployment(activeDep);
+        }
+      } catch {
+        // Deployment history optional
+      }
+
     } catch (err: any) {
       setError(err.message || 'Project not found');
     } finally {
@@ -98,35 +121,63 @@ export const ProjectDetails: React.FC = () => {
   // Live log polling when build is active
   useEffect(() => {
     if (!id || !activeBuild || activeBuild.status === 'SUCCESS' || activeBuild.status === 'FAILED' || activeBuild.status === 'CANCELLED' || activeBuild.status === 'TIMEOUT') {
-      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+      if (buildPollRef.current) clearInterval(buildPollRef.current);
       return;
     }
 
-    pollIntervalRef.current = setInterval(async () => {
+    buildPollRef.current = setInterval(async () => {
       try {
         const updatedBuild = await buildService.getBuildById(id, activeBuild.id);
         setActiveBuild(updatedBuild);
         fetchLogs(id, activeBuild.id);
 
         if (updatedBuild.status === 'SUCCESS' || updatedBuild.status === 'FAILED' || updatedBuild.status === 'CANCELLED' || updatedBuild.status === 'TIMEOUT') {
-          if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+          if (buildPollRef.current) clearInterval(buildPollRef.current);
           const updatedHistory = await buildService.getBuilds(id);
           setBuilds(updatedHistory);
           if (updatedBuild.status === 'SUCCESS') {
             showToast('✓ Project build completed successfully!');
-          } else {
-            showToast(`Build finished with status: ${updatedBuild.status}`, 'error');
           }
         }
       } catch {
-        if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+        if (buildPollRef.current) clearInterval(buildPollRef.current);
       }
     }, 1500);
 
     return () => {
-      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+      if (buildPollRef.current) clearInterval(buildPollRef.current);
     };
   }, [id, activeBuild]);
+
+  // Live polling when deployment is active
+  useEffect(() => {
+    if (!id || !activeDeployment || activeDeployment.status === 'SUCCESS' || activeDeployment.status === 'FAILED' || activeDeployment.status === 'CANCELLED') {
+      if (deployPollRef.current) clearInterval(deployPollRef.current);
+      return;
+    }
+
+    deployPollRef.current = setInterval(async () => {
+      try {
+        const updatedDep = await deploymentService.getDeploymentById(id, activeDeployment.id);
+        setActiveDeployment(updatedDep);
+
+        if (updatedDep.status === 'SUCCESS' || updatedDep.status === 'FAILED' || updatedDep.status === 'CANCELLED') {
+          if (deployPollRef.current) clearInterval(deployPollRef.current);
+          const updatedListRes = await deploymentService.getDeployments(id);
+          setDeployments(updatedListRes.deployments || []);
+          if (updatedDep.status === 'SUCCESS') {
+            showToast('✓ Artifact deployed successfully!');
+          }
+        }
+      } catch {
+        if (deployPollRef.current) clearInterval(deployPollRef.current);
+      }
+    }, 1500);
+
+    return () => {
+      if (deployPollRef.current) clearInterval(deployPollRef.current);
+    };
+  }, [id, activeDeployment]);
 
   const handleStartBuild = async () => {
     if (!id) return;
@@ -139,15 +190,41 @@ export const ProjectDetails: React.FC = () => {
       setBuilds(updatedHistory);
       showToast('✓ Build request submitted!');
     } catch (err: any) {
-      if (err.status === 409) {
-        showToast(err.message || 'Build already in progress or source missing', 'error');
-      } else if (err.status === 503) {
-        showToast('Build engine is currently unavailable.', 'error');
-      } else {
-        showToast(err.message || 'Failed to start build', 'error');
-      }
+      showToast(err.message || 'Failed to start build', 'error');
     } finally {
       setIsStartingBuild(false);
+    }
+  };
+
+  const handleDeployBuild = async (targetBuild: ProjectBuild) => {
+    if (!id) return;
+    setIsDeploying(true);
+    try {
+      const newDep = await deploymentService.createDeployment(id, targetBuild.id);
+      setActiveDeployment(newDep);
+      const updatedListRes = await deploymentService.getDeployments(id);
+      setDeployments(updatedListRes.deployments || []);
+      showToast('✓ Deployment request submitted!');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to start deployment', 'error');
+    } finally {
+      setIsDeploying(false);
+    }
+  };
+
+  const handleRollback = async (targetDep: ProjectDeployment) => {
+    if (!id) return;
+    setIsRollingBack(true);
+    try {
+      const updatedDep = await deploymentService.rollbackToDeployment(id, targetDep.id);
+      setActiveDeployment(updatedDep);
+      const updatedListRes = await deploymentService.getDeployments(id);
+      setDeployments(updatedListRes.deployments || []);
+      showToast(`✓ Rolled back to deployment ${targetDep.id.substring(0, 8)}...`);
+    } catch (err: any) {
+      showToast(err.message || 'Failed to rollback deployment', 'error');
+    } finally {
+      setIsRollingBack(false);
     }
   };
 
@@ -171,7 +248,6 @@ export const ProjectDetails: React.FC = () => {
       }
     }
   };
-
 
   const handleUpdate = async (projId: string, data: UpdateProjectRequest) => {
     try {
@@ -249,6 +325,7 @@ export const ProjectDetails: React.FC = () => {
   }
 
   const isBuildingActive = activeBuild ? ['QUEUED', 'PREPARING', 'INSTALLING', 'BUILDING'].includes(activeBuild.status) : false;
+  const isDeployingActive = activeDeployment ? ['QUEUED', 'PREPARING', 'EXTRACTING', 'VALIDATING', 'PUBLISHING'].includes(activeDeployment.status) : false;
 
   return (
     <DashboardLayout title={project.name}>
@@ -267,11 +344,22 @@ export const ProjectDetails: React.FC = () => {
             <button
               onClick={handleStartBuild}
               disabled={isStartingBuild || isBuildingActive}
-              className="inline-flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-sm rounded-xl transition-all shadow-lg shadow-emerald-600/30 disabled:opacity-50"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-sm rounded-xl transition-all shadow-lg shadow-emerald-600/30 disabled:opacity-50"
             >
               <Hammer className={`w-4 h-4 ${isStartingBuild || isBuildingActive ? 'animate-bounce' : ''}`} />
               {isStartingBuild ? 'Starting...' : isBuildingActive ? 'Building...' : 'Build Project'}
             </button>
+
+            {activeBuild && activeBuild.status === 'SUCCESS' && (
+              <button
+                onClick={() => handleDeployBuild(activeBuild)}
+                disabled={isDeploying || isDeployingActive}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-sm rounded-xl transition-all shadow-lg shadow-blue-600/30 disabled:opacity-50"
+              >
+                <Rocket className={`w-4 h-4 ${isDeploying || isDeployingActive ? 'animate-bounce' : ''}`} />
+                {isDeploying ? 'Deploying...' : isDeployingActive ? 'Publishing...' : 'Deploy Artifact'}
+              </button>
+            )}
 
             <button
               onClick={() => setIsEditOpen(true)}
@@ -338,6 +426,30 @@ export const ProjectDetails: React.FC = () => {
           </div>
         </div>
 
+        {/* LIVE DEPLOYED URL CARD (PHASE 5) */}
+        {activeDeployment && activeDeployment.status === 'SUCCESS' && (
+          <DeploymentUrlCard deployment={activeDeployment} />
+        )}
+
+        {/* ACTIVE DEPLOYMENT PROGRESS (PHASE 5) */}
+        {activeDeployment && activeDeployment.status !== 'SUCCESS' && (
+          <DeploymentProgress
+            deployment={activeDeployment}
+            onCancel={() => {
+              if (id) deploymentService.cancelDeployment(id, activeDeployment.id);
+            }}
+          />
+        )}
+
+        {/* DEPLOYMENT HISTORY LIST (PHASE 5) */}
+        {deployments.length > 0 && (
+          <DeploymentHistoryList
+            deployments={deployments}
+            onRollback={handleRollback}
+            isRollingBack={isRollingBack}
+          />
+        )}
+
         {/* ACTIVE BUILD & TERMINAL LOGS SECTION (PHASE 4) */}
         {activeBuild && (
           <div className="space-y-4">
@@ -362,7 +474,7 @@ export const ProjectDetails: React.FC = () => {
           </div>
         )}
 
-        {/* BUILD HISTORY SECTION */}
+        {/* BUILD HISTORY SECTION (PHASE 4) */}
         {builds.length > 0 && (
           <BuildHistoryList
             builds={builds}

@@ -55,9 +55,14 @@ public class Project {
     @Column(nullable = false, length = 50)
     private ProjectStatus status = ProjectStatus.ACTIVE;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "active_deployment_id")
+    private DeploymentEntity activeDeployment;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private ZonedDateTime createdAt;
+
 
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
@@ -157,9 +162,18 @@ public class Project {
         this.status = status;
     }
 
+    public DeploymentEntity getActiveDeployment() {
+        return activeDeployment;
+    }
+
+    public void setActiveDeployment(DeploymentEntity activeDeployment) {
+        this.activeDeployment = activeDeployment;
+    }
+
     public ZonedDateTime getCreatedAt() {
         return createdAt;
     }
+
 
     public void setCreatedAt(ZonedDateTime createdAt) {
         this.createdAt = createdAt;

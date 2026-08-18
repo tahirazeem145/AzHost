@@ -18,8 +18,18 @@ This roadmap outlines the 10-phase progression for building **AZHost**, from ini
 - Implement workspace scanner detecting Node.js (React, Vite, Next.js, Vue), Java (Spring Boot, Maven, Gradle), and Python frameworks.
 - Auto-generate recommended build commands and output directory defaults.
 
-## Phase 5 — Build Engine Infrastructure
+## Phase 5 — Build Engine Infrastructure [COMPLETED]
 - Create isolated build worker runner using Docker containers.
+- [x] **Phase 1 — Foundation & Architecture**
+- [x] **Phase 2 — Project Management**
+- [x] **Phase 3 — Project Detection & Analysis**
+- [x] **Phase 4 — Source Acquisition & Build Engine**
+- [x] **Phase 5 — Artifact Deployment & Static Hosting Engine**
+- [ ] **Phase 6 — Custom Domains & SSL Automation**
+
+- Implement target deployment routing and static asset serving engine.
+- Create container lifecycle manager for spinning up project containers.
+- Implement basic instant rollback mechanism to previous deployment builds.
 - Implement streaming log capture (`deployment_logs` entity) for real-time stdout/stderr visualization in the UI.
 
 ## Phase 6 — Deployment Engine & Static Hosting

@@ -20,9 +20,10 @@ public class WebSecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/health", "/api/info", "/api/projects/**").permitAll()
+                .requestMatchers("/api/health", "/api/info", "/api/projects/**", "/api/deployments/**").permitAll()
                 .anyRequest().authenticated()
             );
+
 
 
         return http.build();
