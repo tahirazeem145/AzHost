@@ -21,7 +21,7 @@ class UserRepositoryTest {
     void saveAndFindUserByEmail_ShouldSucceed() {
         User user = new User("developer@azhost.dev", "hashed_password_sample", "Lead Developer");
 
-        User savedUser = userRepository.save(user);
+        User savedUser = userRepository.saveAndFlush(user);
 
         assertThat(savedUser.getId()).isNotNull();
         assertThat(savedUser.getCreatedAt()).isNotNull();
@@ -30,5 +30,6 @@ class UserRepositoryTest {
         assertThat(foundUser).isPresent();
         assertThat(foundUser.get().getDisplayName()).isEqualTo("Lead Developer");
     }
+
 
 }
