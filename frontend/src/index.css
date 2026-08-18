@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply font-sans antialiased text-slate-100 bg-slate-950;
+  }
+}
+
+/* Glassmorphism & custom utility classes */
+.glass-panel {
+  @apply bg-slate-900/60 backdrop-blur-md border border-slate-800/80 rounded-xl shadow-xl;
+}
+
+.glass-card {
+  @apply bg-slate-900/40 hover:bg-slate-900/80 transition-all duration-200 border border-slate-800/60 rounded-xl;
+}
