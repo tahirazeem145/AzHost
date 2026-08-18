@@ -35,19 +35,50 @@ This document defines the relational database architecture for AZHost. In Phase 
 
 ---
 
-## 2. Entity Schemas & Models
+### 2. Migration Tooling
 
-### 2.1 `users` Table (Phase 1 Baseline)
-Stores platform developer accounts.
+Flyway (`flyway-core`, `flyway-database-postgresql`) manages schema DDL migrations sequentially:
+- `V1__init_schema.sql`: Creates baseline `users` table.
+- `V2__create_projects_table.sql`: Creates `projects` table, foreign keys, unique slug constraint, and performance indexes.
+
+---
+
+## Entity Schemas
+
+### Users (`users`)
 
 | Column | Type | Constraints | Description |
-| :--- | :--- | :--- | :--- |
-| `id` | UUID | PRIMARY KEY, DEFAULT `gen_random_uuid()` | Unique user identifier |
-| `email` | VARCHAR(255) | UNIQUE, NOT NULL | Account email address |
-| `password_hash` | VARCHAR(255) | NOT NULL | BCrypt / Argon2 password hash |
-| `display_name` | VARCHAR(100) | NOT NULL | User's full name or handle |
-| `created_at` | TIMESTAMP WITH TIME ZONE | NOT NULL, DEFAULT `CURRENT_TIMESTAMP` | Account creation timestamp |
-| `updated_at` | TIMESTAMP WITH TIME ZONE | NOT NULL, DEFAULT `CURRENT_TIMESTAMP` | Last profile update timestamp |
+|---|---|---|---|
+| `id` | UUID | PRIMARY KEY | Unique user identifier |
+| `email` | VARCHAR(255) | NOT NULL, UNIQUE | User email address |
+| `password_hash` | VARCHAR(255) | NOT NULL | BCrypt password hash |
+| `display_name` | VARCHAR(100) | NOT NULL | User display name |
+| `created_at` | TIMESTAMPTZ | NOT NULL | Creation timestamp |
+| `updated_at` | TIMESTAMPTZ | NOT NULL | Update timestamp |
+
+---
+
+### Projects (`projects`)
+
+| Column | Type | Constraints | Description |
+|---|---|---|---|
+| `id` | UUID | PRIMARY KEY | Unique project identifier |
+| `user_id` | UUID | NOT NULL, FK(users.id) | Owning user ID |
+| `name` | VARCHAR(100) | NOT NULL | Human-readable project name |
+| `slug` | VARCHAR(100) | NOT NULL | URL-safe unique project slug |
+| `description` | TEXT | NULLABLE | Detailed description |
+| `framework` | VARCHAR(50) | NOT NULL | REACT, VITE, NEXT_JS, VUE, ANGULAR, STATIC, UNKNOWN |
+| `source_type` | VARCHAR(50) | NOT NULL | GITHUB, UPLOAD, LOCAL |
+| `repository_url` | VARCHAR(255) | NULLABLE | Source GitHub URL |
+| `repository_branch` | VARCHAR(100) | NULLABLE | Source Git branch |
+| `status` | VARCHAR(50) | NOT NULL | ACTIVE, ARCHIVED |
+| `created_at` | TIMESTAMPTZ | NOT NULL | Creation timestamp |
+| `updated_at` | TIMESTAMPTZ | NOT NULL | Update timestamp |
+
+**Constraints & Indexes**:
+- `CONSTRAINT uk_projects_user_slug UNIQUE (user_id, slug)`
+- `idx_projects_user_slug (user_id, slug)`
+- `idx_projects_user_name (user_id, name)`
 
 ---
 

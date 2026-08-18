@@ -6,9 +6,11 @@ AZHost is a developer-friendly alternative to platforms such as Vercel and Netli
 
 ---
 
-## Current Status: Phase 1 — Foundation & Architecture
-
-This repository contains **Phase 1** of AZHost. It establishes a clean, scalable, and modular foundation for all future phases.
+## Current Status:
+- [x] **Phase 1 — Foundation & Architecture**: Micro-service layout, Spring Boot backend, Vite React frontend, Docker Compose setup, Nginx reverse proxy, health check polling.
+- [x] **Phase 2 — Project Management**: Full project lifecycle (Create, List, Search, View Details, Edit, Delete) with PostgreSQL relational persistence, Flyway migrations, and REST APIs.
+- [ ] **Phase 3 — Environment Variables**: Secure environment key-value storage.
+- [ ] **Phase 4 — Repository Integration & Source Code**: GitHub OAuth & project cloning.
 
 ### Core Architecture
 

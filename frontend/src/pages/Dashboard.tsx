@@ -1,14 +1,45 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import { StatCard } from '../components/StatCard';
 import { EmptyState } from '../components/EmptyState';
 import { NewProjectModal } from '../components/NewProjectModal';
 import { useBackendStatus } from '../context/BackendStatusContext';
+import { useNotification } from '../context/NotificationContext';
+import { projectService } from '../services/projectService';
+import { CreateProjectRequest } from '../types/project';
 import { Plus, Terminal, Server } from 'lucide-react';
+
 
 export const Dashboard: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [projectCount, setProjectCount] = useState<number>(0);
   const { isConnected, appInfo } = useBackendStatus();
+  const { showToast } = useNotification();
+
+  const fetchProjectCount = useCallback(async () => {
+    if (!isConnected) return;
+    try {
+      const count = await projectService.getProjectCount();
+      setProjectCount(count);
+    } catch {
+      // Fallback silently if offline
+    }
+  }, [isConnected]);
+
+  useEffect(() => {
+    fetchProjectCount();
+  }, [fetchProjectCount]);
+
+  const handleCreateProject = async (data: CreateProjectRequest) => {
+    try {
+      await projectService.createProject(data);
+      showToast('✓ Project created successfully.');
+      fetchProjectCount();
+    } catch (err: any) {
+      showToast(err.message || 'Failed to create project', 'error');
+      throw err;
+    }
+  };
 
   return (
     <DashboardLayout title="Dashboard">
@@ -57,7 +88,7 @@ export const Dashboard: React.FC = () => {
         <div>
           <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">Overview</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard title="Projects" value={0} iconName="projects" subtitle="Active developer projects" />
+            <StatCard title="Projects" value={projectCount} iconName="projects" subtitle="Active developer projects" />
             <StatCard title="Deployments" value={0} iconName="deployments" subtitle="Total deployment builds" />
             <StatCard title="Live Sites" value={0} iconName="live-sites" subtitle="Active production domains" />
             <StatCard title="Successful Deployments" value={0} iconName="successful-deployments" subtitle="100% target reliability" />
@@ -76,12 +107,16 @@ export const Dashboard: React.FC = () => {
 
           <EmptyState
             title="No deployments yet."
-            description="Your deployments will appear here once you connect a repository and trigger a build."
+            description="Deployment activity will appear here once deployment support is added in future phases."
           />
         </div>
       </div>
 
-      <NewProjectModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+      <NewProjectModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSubmit={handleCreateProject}
+      />
     </DashboardLayout>
   );
 };

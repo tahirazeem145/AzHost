@@ -5,13 +5,6 @@ This roadmap outlines the 10-phase progression for building **AZHost**, from ini
 ---
 
 ## Phase 1 — Foundation & Architecture (Current Phase)
-- Establish modular directory structure (`frontend/`, `backend/`, `infrastructure/`, `docs/`).
-- Initialize React + Vite + TypeScript + Tailwind CSS application shell.
-- Initialize Spring Boot 3 Java backend with REST endpoints (`/api/health`, `/api/info`).
-- Connect PostgreSQL 15 database foundation and create `users` entity/table schema.
-- Implement Docker Compose orchestration, CORS, global exception handling, and baseline unit tests.
-
-## Phase 2 — Dashboard & User Interface Enhancements
 - Expand dashboard analytics cards and interactive statistics tracking.
 - Build system activity feeds, filterable logs, and UI dark/light mode toggles.
 - Add user profile management UI and notification banners.

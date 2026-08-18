@@ -38,6 +38,10 @@ public class User {
     @Column(name = "updated_at", nullable = false)
     private ZonedDateTime updatedAt;
 
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private java.util.List<Project> projects = new java.util.ArrayList<>();
+
+
     public User() {}
 
     public User(String email, String passwordHash, String displayName) {
