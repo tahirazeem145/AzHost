@@ -1,0 +1,178 @@
+package com.azhost.service;
+
+import com.azhost.build.BuildLogStreamer;
+import com.azhost.build.BuildManager;
+import com.azhost.build.workspace.BuildWorkspaceManager;
+import com.azhost.dto.BuildLogResponseDto;
+import com.azhost.dto.BuildResponseDto;
+import com.azhost.entity.Project;
+import com.azhost.entity.ProjectAnalysisEntity;
+import com.azhost.entity.ProjectBuildEntity;
+import com.azhost.entity.User;
+import com.azhost.exception.BuildNotFoundException;
+import com.azhost.exception.ProjectNotFoundException;
+import com.azhost.exception.ProjectSourceNotAvailableException;
+import com.azhost.repository.ProjectAnalysisRepository;
+import com.azhost.repository.ProjectBuildRepository;
+import com.azhost.repository.ProjectRepository;
+import com.azhost.repository.UserRepository;
+import com.azhost.source.SourceAcquisitionResult;
+import com.azhost.source.SourceAcquisitionService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+@Service
+public class BuildService {
+
+    private static final Logger logger = LoggerFactory.getLogger(BuildService.class);
+
+    private final ProjectRepository projectRepository;
+    private final ProjectAnalysisRepository projectAnalysisRepository;
+    private final ProjectBuildRepository projectBuildRepository;
+    private final UserRepository userRepository;
+    private final ProjectAnalysisService projectAnalysisService;
+    private final SourceAcquisitionService sourceAcquisitionService;
+    private final BuildWorkspaceManager workspaceManager;
+    private final BuildManager buildManager;
+
+    public BuildService(
+            ProjectRepository projectRepository,
+            ProjectAnalysisRepository projectAnalysisRepository,
+            ProjectBuildRepository projectBuildRepository,
+            UserRepository userRepository,
+            ProjectAnalysisService projectAnalysisService,
+            SourceAcquisitionService sourceAcquisitionService,
+            BuildWorkspaceManager workspaceManager,
+            BuildManager buildManager
+    ) {
+        this.projectRepository = projectRepository;
+        this.projectAnalysisRepository = projectAnalysisRepository;
+        this.projectBuildRepository = projectBuildRepository;
+        this.userRepository = userRepository;
+        this.projectAnalysisService = projectAnalysisService;
+        this.sourceAcquisitionService = sourceAcquisitionService;
+        this.workspaceManager = workspaceManager;
+        this.buildManager = buildManager;
+    }
+
+    @Transactional
+    public BuildResponseDto startBuild(UUID projectId, String userEmail) {
+        User user = getUser(userEmail);
+        Project project = projectRepository.findByIdAndUserId(projectId, user.getId())
+                .orElseThrow(() -> new ProjectNotFoundException("Project not found with ID: " + projectId));
+
+        // Retrieve or execute metadata analysis
+        ProjectAnalysisEntity analysis = projectAnalysisRepository.findByProjectId(projectId)
+                .orElseGet(() -> {
+                    try {
+                        projectAnalysisService.analyzeProject(projectId, userEmail);
+                        return projectAnalysisRepository.findByProjectId(projectId)
+                                .orElseThrow(() -> new ProjectSourceNotAvailableException("Project source is not available for building yet."));
+                    } catch (ProjectSourceNotAvailableException ex) {
+                        throw ex;
+                    } catch (Exception e) {
+                        throw new ProjectSourceNotAvailableException("Project source is not available for building yet.");
+                    }
+                });
+
+        // Reserve active build slot for project
+        String workspaceId = workspaceManager.generateWorkspaceId();
+        ProjectBuildEntity buildEntity = new ProjectBuildEntity(
+                project,
+                analysis.getFramework(),
+                analysis.getPackageManager() != null ? analysis.getPackageManager() : "NPM",
+                analysis.getNodeVersion() != null ? analysis.getNodeVersion() : "20",
+                analysis.getBuildCommand(),
+                analysis.getOutputDirectory() != null ? analysis.getOutputDirectory() : "dist",
+                workspaceId
+        );
+
+        ProjectBuildEntity savedEntity = projectBuildRepository.save(buildEntity);
+        buildManager.registerActiveBuild(projectId, savedEntity.getId());
+
+        Path workspacePath;
+        try {
+            workspacePath = workspaceManager.createWorkspace(workspaceId);
+            SourceAcquisitionResult acquiredSource = sourceAcquisitionService.acquireSource(project, workspacePath);
+            logger.info("Source acquired for build ID {}: {} files", savedEntity.getId(), acquiredSource.getTotalFileCount());
+        } catch (IOException | SecurityException e) {
+            buildManager.unregisterActiveBuild(projectId);
+            savedEntity.setStatus(com.azhost.build.BuildStatus.FAILED);
+            savedEntity.setErrorMessage("Source acquisition failed: " + e.getMessage());
+            projectBuildRepository.save(savedEntity);
+            throw new ProjectSourceNotAvailableException("Source acquisition failed: " + e.getMessage());
+        }
+
+        buildManager.submitBuildTask(savedEntity, project, workspacePath);
+        return new BuildResponseDto(savedEntity);
+    }
+
+    @Transactional(readOnly = true)
+    public List<BuildResponseDto> getBuildsForProject(UUID projectId, String userEmail) {
+        User user = getUser(userEmail);
+        Project project = projectRepository.findByIdAndUserId(projectId, user.getId())
+                .orElseThrow(() -> new ProjectNotFoundException("Project not found with ID: " + projectId));
+
+        return projectBuildRepository.findByProjectIdOrderByCreatedAtDesc(project.getId()).stream()
+                .map(BuildResponseDto::new)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public BuildResponseDto getBuildById(UUID projectId, UUID buildId, String userEmail) {
+        User user = getUser(userEmail);
+        projectRepository.findByIdAndUserId(projectId, user.getId())
+                .orElseThrow(() -> new ProjectNotFoundException("Project not found with ID: " + projectId));
+
+        ProjectBuildEntity entity = projectBuildRepository.findByIdAndProjectId(buildId, projectId)
+                .orElseThrow(() -> new BuildNotFoundException("Build not found with ID: " + buildId));
+
+        return new BuildResponseDto(entity);
+    }
+
+    @Transactional(readOnly = true)
+    public BuildLogResponseDto getBuildLogs(UUID projectId, UUID buildId, String userEmail) {
+        User user = getUser(userEmail);
+        projectRepository.findByIdAndUserId(projectId, user.getId())
+                .orElseThrow(() -> new ProjectNotFoundException("Project not found with ID: " + projectId));
+
+        ProjectBuildEntity entity = projectBuildRepository.findByIdAndProjectId(buildId, projectId)
+                .orElseThrow(() -> new BuildNotFoundException("Build not found with ID: " + buildId));
+
+        BuildLogStreamer streamer = buildManager.getLogStreamer(buildId);
+        List<String> lines = streamer.getLogLines();
+
+        return new BuildLogResponseDto(entity.getId(), entity.getStatus(), lines, streamer.isTruncated());
+    }
+
+    @Transactional
+    public BuildResponseDto cancelBuild(UUID projectId, UUID buildId, String userEmail) {
+        User user = getUser(userEmail);
+        projectRepository.findByIdAndUserId(projectId, user.getId())
+                .orElseThrow(() -> new ProjectNotFoundException("Project not found with ID: " + projectId));
+
+        ProjectBuildEntity entity = projectBuildRepository.findByIdAndProjectId(buildId, projectId)
+                .orElseThrow(() -> new BuildNotFoundException("Build not found with ID: " + buildId));
+
+        if (!entity.getStatus().isTerminal()) {
+            buildManager.cancelBuild(buildId);
+            entity.setStatus(com.azhost.build.BuildStatus.CANCELLED);
+            projectBuildRepository.save(entity);
+        }
+
+        return new BuildResponseDto(entity);
+    }
+
+    private User getUser(String userEmail) {
+        return userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new IllegalStateException("User context not found for email: " + userEmail));
+    }
+}

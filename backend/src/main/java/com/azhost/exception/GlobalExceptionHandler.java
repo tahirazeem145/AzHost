@@ -42,6 +42,45 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(error, HttpStatus.CONFLICT);
     }
 
+    @ExceptionHandler(BuildAlreadyInProgressException.class)
+    public ResponseEntity<ErrorResponseDto> handleBuildAlreadyInProgress(BuildAlreadyInProgressException ex, HttpServletRequest request) {
+        logger.warn("Build already in progress: {}", ex.getMessage());
+        ErrorResponseDto error = new ErrorResponseDto(
+                LocalDateTime.now(),
+                HttpStatus.CONFLICT.value(),
+                ex.getErrorCode(),
+                ex.getMessage(),
+                request.getRequestURI()
+        );
+        return new ResponseEntity<>(error, HttpStatus.CONFLICT);
+    }
+
+    @ExceptionHandler(BuildEngineUnavailableException.class)
+    public ResponseEntity<ErrorResponseDto> handleBuildEngineUnavailable(BuildEngineUnavailableException ex, HttpServletRequest request) {
+        logger.error("Build engine unavailable: {}", ex.getMessage());
+        ErrorResponseDto error = new ErrorResponseDto(
+                LocalDateTime.now(),
+                HttpStatus.SERVICE_UNAVAILABLE.value(),
+                ex.getErrorCode(),
+                ex.getMessage(),
+                request.getRequestURI()
+        );
+        return new ResponseEntity<>(error, HttpStatus.SERVICE_UNAVAILABLE);
+    }
+
+    @ExceptionHandler(BuildNotFoundException.class)
+    public ResponseEntity<ErrorResponseDto> handleBuildNotFound(BuildNotFoundException ex, HttpServletRequest request) {
+        logger.warn("Build not found: {}", ex.getMessage());
+        ErrorResponseDto error = new ErrorResponseDto(
+                LocalDateTime.now(),
+                HttpStatus.NOT_FOUND.value(),
+                "BUILD_NOT_FOUND",
+                ex.getMessage(),
+                request.getRequestURI()
+        );
+        return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
+    }
+
     @ExceptionHandler(DuplicateProjectSlugException.class)
 
     public ResponseEntity<ErrorResponseDto> handleDuplicateProjectSlug(DuplicateProjectSlugException ex, HttpServletRequest request) {

@@ -14,7 +14,7 @@ This roadmap outlines the 10-phase progression for building **AZHost**, from ini
 - Support manual repository linking (Git HTTPS/SSH clone URLs).
 - Build environment variable configuration UI with encrypted storage.
 
-## Phase 4 — Project & Framework Detection Engine
+## Phase 4 — Project & Framework Detection Engine [COMPLETED]
 - Implement workspace scanner detecting Node.js (React, Vite, Next.js, Vue), Java (Spring Boot, Maven, Gradle), and Python frameworks.
 - Auto-generate recommended build commands and output directory defaults.
 

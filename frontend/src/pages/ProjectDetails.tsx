@@ -1,15 +1,20 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import { Project, UpdateProjectRequest } from '../types/project';
 import { ProjectAnalysisResult, AnalysisUIStatus } from '../types/projectAnalysis';
+import { ProjectBuild } from '../types/build';
 import { projectService } from '../services/projectService';
 import { projectAnalysisService } from '../services/projectAnalysisService';
+import { buildService } from '../services/buildService';
 import { useNotification } from '../context/NotificationContext';
 import { EditProjectModal } from '../components/EditProjectModal';
 import { DeleteConfirmationModal } from '../components/DeleteConfirmationModal';
 import { ProjectAnalysisCard } from '../components/ProjectAnalysisCard';
-import { ArrowLeft, Edit3, Trash2, Github, ExternalLink, Rocket, Globe, Key, Sparkles, AlertCircle, Info, Loader2 } from 'lucide-react';
+import { BuildStatusBadge } from '../components/BuildStatusBadge';
+import { BuildLogViewer } from '../components/BuildLogViewer';
+import { BuildHistoryList } from '../components/BuildHistoryList';
+import { ArrowLeft, Edit3, Trash2, Sparkles, Info, Loader2, Hammer, PackageCheck } from 'lucide-react';
 
 export const ProjectDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -19,12 +24,21 @@ export const ProjectDetails: React.FC = () => {
   const [project, setProject] = useState<Project | null>(null);
   const [analysis, setAnalysis] = useState<ProjectAnalysisResult | null>(null);
   const [analysisStatus, setAnalysisStatus] = useState<AnalysisUIStatus>('NOT_ANALYZED');
-  const [analysisErrorMessage, setAnalysisErrorMessage] = useState<string | null>(null);
+
+  // Phase 4 Build Engine States
+  const [builds, setBuilds] = useState<ProjectBuild[]>([]);
+  const [activeBuild, setActiveBuild] = useState<ProjectBuild | null>(null);
+  const [logs, setLogs] = useState<string[]>([]);
+  const [isLogTruncated, setIsLogTruncated] = useState(false);
+  const [isStartingBuild, setIsStartingBuild] = useState(false);
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+
+  const pollIntervalRef = useRef<any>(null);
+
 
   const fetchProjectData = useCallback(async () => {
     if (!id) return;
@@ -34,7 +48,7 @@ export const ProjectDetails: React.FC = () => {
       const projData = await projectService.getProjectById(id);
       setProject(projData);
 
-      // Attempt to load existing analysis
+      // Fetch existing analysis
       try {
         const analysisData = await projectAnalysisService.getLatestAnalysis(id);
         if (analysisData) {
@@ -46,6 +60,20 @@ export const ProjectDetails: React.FC = () => {
       } catch {
         setAnalysisStatus('NOT_ANALYZED');
       }
+
+      // Fetch build history
+      try {
+        const buildList = await buildService.getBuilds(id);
+        setBuilds(buildList);
+        if (buildList.length > 0) {
+          const latest = buildList[0];
+          setActiveBuild(latest);
+          fetchLogs(id, latest.id);
+        }
+      } catch {
+        // Build history optional on initial load
+      }
+
     } catch (err: any) {
       setError(err.message || 'Project not found');
     } finally {
@@ -57,30 +85,93 @@ export const ProjectDetails: React.FC = () => {
     fetchProjectData();
   }, [fetchProjectData]);
 
+  const fetchLogs = async (projId: string, buildId: string) => {
+    try {
+      const logRes = await buildService.getBuildLogs(projId, buildId);
+      setLogs(logRes.logs || []);
+      setIsLogTruncated(logRes.truncated || false);
+    } catch {
+      // Ignore log fetch error
+    }
+  };
+
+  // Live log polling when build is active
+  useEffect(() => {
+    if (!id || !activeBuild || activeBuild.status === 'SUCCESS' || activeBuild.status === 'FAILED' || activeBuild.status === 'CANCELLED' || activeBuild.status === 'TIMEOUT') {
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+      return;
+    }
+
+    pollIntervalRef.current = setInterval(async () => {
+      try {
+        const updatedBuild = await buildService.getBuildById(id, activeBuild.id);
+        setActiveBuild(updatedBuild);
+        fetchLogs(id, activeBuild.id);
+
+        if (updatedBuild.status === 'SUCCESS' || updatedBuild.status === 'FAILED' || updatedBuild.status === 'CANCELLED' || updatedBuild.status === 'TIMEOUT') {
+          if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+          const updatedHistory = await buildService.getBuilds(id);
+          setBuilds(updatedHistory);
+          if (updatedBuild.status === 'SUCCESS') {
+            showToast('✓ Project build completed successfully!');
+          } else {
+            showToast(`Build finished with status: ${updatedBuild.status}`, 'error');
+          }
+        }
+      } catch {
+        if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+      }
+    }, 1500);
+
+    return () => {
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+    };
+  }, [id, activeBuild]);
+
+  const handleStartBuild = async () => {
+    if (!id) return;
+    setIsStartingBuild(true);
+    try {
+      const newBuild = await buildService.startBuild(id);
+      setActiveBuild(newBuild);
+      setLogs(['[AZHOST BUILD ENGINE] Build queued...']);
+      const updatedHistory = await buildService.getBuilds(id);
+      setBuilds(updatedHistory);
+      showToast('✓ Build request submitted!');
+    } catch (err: any) {
+      if (err.status === 409) {
+        showToast(err.message || 'Build already in progress or source missing', 'error');
+      } else if (err.status === 503) {
+        showToast('Build engine is currently unavailable.', 'error');
+      } else {
+        showToast(err.message || 'Failed to start build', 'error');
+      }
+    } finally {
+      setIsStartingBuild(false);
+    }
+  };
+
   const handleAnalyze = async () => {
     if (!id) return;
     setAnalysisStatus('ANALYZING');
-    setAnalysisErrorMessage(null);
 
     try {
       const result = await projectAnalysisService.analyzeProject(id);
       setAnalysis(result);
       setAnalysisStatus('SUCCESS');
       showToast('✓ Project analysis completed successfully.');
-      // Refresh project to catch any updated framework badge
       const updatedProj = await projectService.getProjectById(id);
       setProject(updatedProj);
     } catch (err: any) {
       if (err.status === 409 || err.code === 'PROJECT_SOURCE_NOT_AVAILABLE') {
         setAnalysisStatus('SOURCE_UNAVAILABLE');
-        setAnalysisErrorMessage(err.message || 'Project source is not available for analysis yet.');
       } else {
         setAnalysisStatus('FAILED');
-        setAnalysisErrorMessage(err.message || 'Failed to analyze project metadata.');
         showToast(err.message || 'Analysis failed', 'error');
       }
     }
   };
+
 
   const handleUpdate = async (projId: string, data: UpdateProjectRequest) => {
     try {
@@ -157,6 +248,8 @@ export const ProjectDetails: React.FC = () => {
     );
   }
 
+  const isBuildingActive = activeBuild ? ['QUEUED', 'PREPARING', 'INSTALLING', 'BUILDING'].includes(activeBuild.status) : false;
+
   return (
     <DashboardLayout title={project.name}>
       <div className="space-y-8">
@@ -172,11 +265,20 @@ export const ProjectDetails: React.FC = () => {
 
           <div className="flex items-center gap-3">
             <button
+              onClick={handleStartBuild}
+              disabled={isStartingBuild || isBuildingActive}
+              className="inline-flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-sm rounded-xl transition-all shadow-lg shadow-emerald-600/30 disabled:opacity-50"
+            >
+              <Hammer className={`w-4 h-4 ${isStartingBuild || isBuildingActive ? 'animate-bounce' : ''}`} />
+              {isStartingBuild ? 'Starting...' : isBuildingActive ? 'Building...' : 'Build Project'}
+            </button>
+
+            <button
               onClick={() => setIsEditOpen(true)}
               className="inline-flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-semibold rounded-lg transition-colors border border-slate-700"
             >
               <Edit3 className="w-4 h-4" />
-              Edit Project
+              Edit
             </button>
 
             <button
@@ -184,7 +286,7 @@ export const ProjectDetails: React.FC = () => {
               className="inline-flex items-center gap-2 px-4 py-2 bg-rose-950/80 hover:bg-rose-900 text-rose-300 text-sm font-semibold rounded-lg transition-colors border border-rose-800/60"
             >
               <Trash2 className="w-4 h-4" />
-              Delete Project
+              Delete
             </button>
           </div>
         </div>
@@ -234,36 +336,45 @@ export const ProjectDetails: React.FC = () => {
               <p className="text-slate-300 text-xs font-mono">{formatDate(project.updatedAt)}</p>
             </div>
           </div>
-
-          {/* Repository Info if GitHub */}
-          {project.sourceType === 'GITHUB' && project.repositoryUrl && (
-            <div className="bg-slate-950 p-5 rounded-xl border border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <Github className="w-5 h-5 text-slate-300" />
-                <div>
-                  <span className="text-xs text-slate-500 font-medium">Connected Repository</span>
-                  <p className="text-sm font-semibold text-slate-200">{project.repositoryUrl}</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <span className="px-2.5 py-1 rounded bg-slate-900 text-slate-300 font-mono text-xs border border-slate-800">
-                  Branch: {project.repositoryBranch || 'main'}
-                </span>
-                <a
-                  href={project.repositoryUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="p-2 text-slate-400 hover:text-white transition-colors"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                </a>
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* PROJECT ANALYSIS SECTION */}
+        {/* ACTIVE BUILD & TERMINAL LOGS SECTION (PHASE 4) */}
+        {activeBuild && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <h3 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
+                  <Hammer className="w-5 h-5 text-emerald-400" />
+                  Active Build Status
+                </h3>
+                <BuildStatusBadge status={activeBuild.status} />
+              </div>
+
+              {activeBuild.artifactId && (
+                <span className="px-3 py-1 bg-emerald-950 text-emerald-300 border border-emerald-800 rounded-lg text-xs font-mono font-semibold flex items-center gap-1.5">
+                  <PackageCheck className="w-4 h-4 text-emerald-400" />
+                  Artifact ID: {activeBuild.artifactId}
+                </span>
+              )}
+            </div>
+
+            <BuildLogViewer logs={logs} isBuilding={isBuildingActive} truncated={isLogTruncated} />
+          </div>
+        )}
+
+        {/* BUILD HISTORY SECTION */}
+        {builds.length > 0 && (
+          <BuildHistoryList
+            builds={builds}
+            onSelectBuild={(b) => {
+              setActiveBuild(b);
+              if (id) fetchLogs(id, b.id);
+            }}
+            selectedBuildId={activeBuild?.id}
+          />
+        )}
+
+        {/* PROJECT ANALYSIS SECTION (PHASE 3) */}
         <div>
           {analysisStatus === 'SUCCESS' && analysis ? (
             <ProjectAnalysisCard
@@ -272,7 +383,6 @@ export const ProjectDetails: React.FC = () => {
               isAnalyzing={false}
             />
           ) : analysisStatus === 'ANALYZING' ? (
-
             <div className="glass-panel p-12 text-center flex flex-col items-center justify-center gap-3">
               <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
               <h3 className="text-lg font-bold text-slate-200">Analyzing Project...</h3>
@@ -286,42 +396,13 @@ export const ProjectDetails: React.FC = () => {
                     <Info className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-slate-200">Project Analysis</h3>
+                    <h3 className="text-lg font-bold text-slate-200">Project Source Notice</h3>
                     <p className="text-xs text-amber-400 font-medium">
-                      Project source is not available for analysis yet.
+                      Project source is not available on disk yet.
                     </p>
                   </div>
                 </div>
-
-                <button
-                  onClick={handleAnalyze}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded-xl transition-colors shadow-lg shadow-blue-600/30"
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  Try Analyze
-                </button>
               </div>
-
-              <p className="text-xs text-slate-400 leading-relaxed bg-slate-950 p-4 rounded-xl border border-slate-900">
-                Phase 3 requires project source files to be present in the server's configured project directory.
-                Source code checkout and automated repository syncing will be connected in Phase 4.
-              </p>
-            </div>
-          ) : analysisStatus === 'FAILED' ? (
-            <div className="glass-panel p-8 text-center space-y-4">
-              <div className="w-10 h-10 rounded-xl bg-rose-950 border border-rose-800 flex items-center justify-center text-rose-400 mx-auto">
-                <AlertCircle className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-rose-400">Analysis Failed</h3>
-                <p className="text-xs text-slate-400">{analysisErrorMessage || 'An unexpected error occurred during project analysis.'}</p>
-              </div>
-              <button
-                onClick={handleAnalyze}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition-colors border border-slate-700"
-              >
-                Retry Analysis
-              </button>
             </div>
           ) : (
             <div className="glass-panel p-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -331,7 +412,7 @@ export const ProjectDetails: React.FC = () => {
                   Project Analysis
                 </h3>
                 <p className="text-xs text-slate-400">
-                  Project has not been analyzed yet. Run automated static inspection to detect framework, build tool, and requirements.
+                  Project has not been analyzed yet. Run static inspection to detect framework, build tool, and dependencies.
                 </p>
               </div>
 
@@ -344,57 +425,6 @@ export const ProjectDetails: React.FC = () => {
               </button>
             </div>
           )}
-        </div>
-
-        {/* Future Feature Placeholders (Deployments, Domains, Environment Variables) */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="glass-panel p-6 border-slate-800/60 opacity-75 relative overflow-hidden">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Rocket className="w-5 h-5 text-blue-400" />
-                <h3 className="font-semibold text-slate-200 text-base">Deployments</h3>
-              </div>
-              <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-blue-950 text-blue-400 border border-blue-800/50">
-                Phase 5
-              </span>
-            </div>
-            <p className="text-xs text-slate-400 leading-relaxed mb-4">
-              Automated build logs, streaming deployment outputs, and instant rollbacks.
-            </p>
-            <span className="text-xs font-semibold text-slate-500 italic">Coming in a future phase</span>
-          </div>
-
-          <div className="glass-panel p-6 border-slate-800/60 opacity-75 relative overflow-hidden">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Globe className="w-5 h-5 text-blue-400" />
-                <h3 className="font-semibold text-slate-200 text-base">Custom Domains</h3>
-              </div>
-              <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-blue-950 text-blue-400 border border-blue-800/50">
-                Phase 9
-              </span>
-            </div>
-            <p className="text-xs text-slate-400 leading-relaxed mb-4">
-              Custom CNAME routing and Let's Encrypt automated SSL certificates.
-            </p>
-            <span className="text-xs font-semibold text-slate-500 italic">Coming in a future phase</span>
-          </div>
-
-          <div className="glass-panel p-6 border-slate-800/60 opacity-75 relative overflow-hidden">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Key className="w-5 h-5 text-blue-400" />
-                <h3 className="font-semibold text-slate-200 text-base">Environment Variables</h3>
-              </div>
-              <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-blue-950 text-blue-400 border border-blue-800/50">
-                Phase 4
-              </span>
-            </div>
-            <p className="text-xs text-slate-400 leading-relaxed mb-4">
-              Encrypted environment key-value pairs for production and preview builds.
-            </p>
-            <span className="text-xs font-semibold text-slate-500 italic">Coming in a future phase</span>
-          </div>
         </div>
       </div>
 
