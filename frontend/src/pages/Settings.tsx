@@ -1,10 +1,11 @@
 import React from 'react';
 import { DashboardLayout } from '../layouts/DashboardLayout';
-import { Settings as SettingsIcon, Shield, Server, Database, Info } from 'lucide-react';
+import { Shield, Server } from 'lucide-react';
 import { useBackendStatus } from '../context/BackendStatusContext';
 
 export const Settings: React.FC = () => {
-  const { isConnected, appInfo, healthInfo } = useBackendStatus();
+  const { isConnected, appInfo } = useBackendStatus();
+
 
   return (
     <DashboardLayout title="Settings">

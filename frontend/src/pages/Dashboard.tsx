@@ -4,7 +4,7 @@ import { StatCard } from '../components/StatCard';
 import { EmptyState } from '../components/EmptyState';
 import { NewProjectModal } from '../components/NewProjectModal';
 import { useBackendStatus } from '../context/BackendStatusContext';
-import { Plus, Terminal, ServerCheck, Info } from 'lucide-react';
+import { Plus, Terminal, Server } from 'lucide-react';
 
 export const Dashboard: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
@@ -42,7 +42,7 @@ export const Dashboard: React.FC = () => {
         {isConnected && appInfo && (
           <div className="bg-slate-900/40 border border-slate-800/80 rounded-xl p-4 flex items-center justify-between text-xs text-slate-400">
             <div className="flex items-center gap-3">
-              <ServerCheck className="w-4 h-4 text-emerald-400" />
+              <Server className="w-4 h-4 text-emerald-400" />
               <span>
                 Connected to <strong className="text-slate-200">{appInfo.name}</strong> v{appInfo.version} ({appInfo.phase})
               </span>
