@@ -53,8 +53,19 @@ public class ProjectBuildEntity {
     @Column(name = "artifact_id", length = 100)
     private String artifactId;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "source_type", length = 50)
+    private ProjectSourceType sourceType;
+
+    @Column(name = "github_repository_id")
+    private Long githubRepositoryId;
+
+    @Column(name = "github_commit_sha", length = 64)
+    private String githubCommitSha;
+
     @Column(name = "started_at")
     private ZonedDateTime startedAt;
+
 
     @Column(name = "completed_at")
     private ZonedDateTime completedAt;
@@ -205,6 +216,30 @@ public class ProjectBuildEntity {
         this.errorMessage = errorMessage;
     }
 
+    public ProjectSourceType getSourceType() {
+        return sourceType;
+    }
+
+    public void setSourceType(ProjectSourceType sourceType) {
+        this.sourceType = sourceType;
+    }
+
+    public Long getGithubRepositoryId() {
+        return githubRepositoryId;
+    }
+
+    public void setGithubRepositoryId(Long githubRepositoryId) {
+        this.githubRepositoryId = githubRepositoryId;
+    }
+
+    public String getGithubCommitSha() {
+        return githubCommitSha;
+    }
+
+    public void setGithubCommitSha(String githubCommitSha) {
+        this.githubCommitSha = githubCommitSha;
+    }
+
     public ZonedDateTime getCreatedAt() {
         return createdAt;
     }
@@ -213,3 +248,4 @@ public class ProjectBuildEntity {
         this.createdAt = createdAt;
     }
 }
+

@@ -21,3 +21,14 @@ spring:
 server:
   port: 0
 
+azhost:
+  github:
+    client-id: test-client-id
+    client-secret: test-client-secret
+    redirect-uri: http://localhost:8080/api/github/callback
+    api-base-url: https://api.github.com
+    oauth-url: https://github.com/login/oauth
+  security:
+    github-token-encryption-key: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+
+

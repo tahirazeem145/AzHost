@@ -39,3 +39,14 @@ logging:
     org.hibernate.SQL: WARN
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+azhost:
+  github:
+    client-id: ${AZHOST_GITHUB_CLIENT_ID:${GITHUB_CLIENT_ID:dummy-github-client-id}}
+    client-secret: ${AZHOST_GITHUB_CLIENT_SECRET:${GITHUB_CLIENT_SECRET:dummy-github-client-secret}}
+    redirect-uri: ${AZHOST_GITHUB_REDIRECT_URI:${GITHUB_REDIRECT_URI:http://localhost:8080/api/github/callback}}
+    api-base-url: ${AZHOST_GITHUB_API_BASE_URL:https://api.github.com}
+    oauth-url: ${AZHOST_GITHUB_OAUTH_URL:https://github.com/login/oauth}
+  security:
+    github-token-encryption-key: ${AZHOST_GITHUB_TOKEN_ENCRYPTION_KEY:${GITHUB_TOKEN_ENCRYPTION_KEY:}}
+

@@ -166,6 +166,71 @@ public class GlobalExceptionHandler {
     }
 
 
+    @ExceptionHandler(com.azhost.github.exception.GitHubAuthenticationException.class)
+    public ResponseEntity<ErrorResponseDto> handleGitHubAuthentication(com.azhost.github.exception.GitHubAuthenticationException ex, HttpServletRequest request) {
+        logger.warn("GitHub authentication failed: {}", ex.getMessage());
+        ErrorResponseDto error = new ErrorResponseDto(
+                LocalDateTime.now(),
+                HttpStatus.UNAUTHORIZED.value(),
+                ex.getErrorCode(),
+                ex.getMessage(),
+                request.getRequestURI()
+        );
+        return new ResponseEntity<>(error, HttpStatus.UNAUTHORIZED);
+    }
+
+    @ExceptionHandler(com.azhost.github.exception.GitHubAuthorizationException.class)
+    public ResponseEntity<ErrorResponseDto> handleGitHubAuthorization(com.azhost.github.exception.GitHubAuthorizationException ex, HttpServletRequest request) {
+        logger.warn("GitHub authorization failed: {}", ex.getMessage());
+        ErrorResponseDto error = new ErrorResponseDto(
+                LocalDateTime.now(),
+                HttpStatus.FORBIDDEN.value(),
+                ex.getErrorCode(),
+                ex.getMessage(),
+                request.getRequestURI()
+        );
+        return new ResponseEntity<>(error, HttpStatus.FORBIDDEN);
+    }
+
+    @ExceptionHandler(com.azhost.github.exception.GitHubRepositoryNotFoundException.class)
+    public ResponseEntity<ErrorResponseDto> handleGitHubRepositoryNotFound(com.azhost.github.exception.GitHubRepositoryNotFoundException ex, HttpServletRequest request) {
+        logger.warn("GitHub repository not found: {}", ex.getMessage());
+        ErrorResponseDto error = new ErrorResponseDto(
+                LocalDateTime.now(),
+                HttpStatus.NOT_FOUND.value(),
+                ex.getErrorCode(),
+                ex.getMessage(),
+                request.getRequestURI()
+        );
+        return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(com.azhost.github.exception.GitHubConnectionNotFoundException.class)
+    public ResponseEntity<ErrorResponseDto> handleGitHubConnectionNotFound(com.azhost.github.exception.GitHubConnectionNotFoundException ex, HttpServletRequest request) {
+        logger.warn("GitHub connection not found: {}", ex.getMessage());
+        ErrorResponseDto error = new ErrorResponseDto(
+                LocalDateTime.now(),
+                HttpStatus.NOT_FOUND.value(),
+                ex.getErrorCode(),
+                ex.getMessage(),
+                request.getRequestURI()
+        );
+        return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(com.azhost.github.exception.GitHubSourceAcquisitionException.class)
+    public ResponseEntity<ErrorResponseDto> handleGitHubSourceAcquisition(com.azhost.github.exception.GitHubSourceAcquisitionException ex, HttpServletRequest request) {
+        logger.warn("GitHub source acquisition failed: {}", ex.getMessage());
+        ErrorResponseDto error = new ErrorResponseDto(
+                LocalDateTime.now(),
+                HttpStatus.BAD_GATEWAY.value(),
+                ex.getErrorCode(),
+                ex.getMessage(),
+                request.getRequestURI()
+        );
+        return new ResponseEntity<>(error, HttpStatus.BAD_GATEWAY);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponseDto> handleGlobalException(Exception ex, HttpServletRequest request) {
         logger.error("Unhandled exception processing request path: {}", request.getRequestURI(), ex);
@@ -178,5 +243,5 @@ public class GlobalExceptionHandler {
         );
         return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
     }
-
 }
+

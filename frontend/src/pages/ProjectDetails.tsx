@@ -19,7 +19,9 @@ import { BuildHistoryList } from '../components/BuildHistoryList';
 import { DeploymentProgress } from '../components/DeploymentProgress';
 import { DeploymentUrlCard } from '../components/DeploymentUrlCard';
 import { DeploymentHistoryList } from '../components/DeploymentHistoryList';
+import { GitHubSourceCard } from '../components/GitHubSourceCard';
 import { ArrowLeft, Edit3, Trash2, Sparkles, Info, Loader2, Hammer, Rocket, PackageCheck } from 'lucide-react';
+
 
 export const ProjectDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -426,7 +428,11 @@ export const ProjectDetails: React.FC = () => {
           </div>
         </div>
 
+        {/* GITHUB SOURCE INTEGRATION (PHASE 7) */}
+        <GitHubSourceCard project={project} onProjectUpdated={setProject} />
+
         {/* LIVE DEPLOYED URL CARD (PHASE 5) */}
+
         {activeDeployment && activeDeployment.status === 'SUCCESS' && (
           <DeploymentUrlCard deployment={activeDeployment} />
         )}

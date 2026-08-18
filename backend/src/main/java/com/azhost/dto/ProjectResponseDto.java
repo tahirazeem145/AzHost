@@ -18,6 +18,10 @@ public class ProjectResponseDto {
     private ProjectSourceType sourceType;
     private String repositoryUrl;
     private String repositoryBranch;
+    private Long githubRepositoryId;
+    private String githubRepositoryName;
+    private String githubBranch;
+    private String githubCommitSha;
     private ProjectStatus status;
     private ZonedDateTime createdAt;
     private ZonedDateTime updatedAt;
@@ -33,10 +37,15 @@ public class ProjectResponseDto {
         this.sourceType = project.getSourceType();
         this.repositoryUrl = project.getRepositoryUrl();
         this.repositoryBranch = project.getRepositoryBranch();
+        this.githubRepositoryId = project.getGithubRepositoryId();
+        this.githubRepositoryName = project.getGithubRepositoryName();
+        this.githubBranch = project.getGithubBranch();
+        this.githubCommitSha = project.getGithubCommitSha();
         this.status = project.getStatus();
         this.createdAt = project.getCreatedAt();
         this.updatedAt = project.getUpdatedAt();
     }
+
 
     public ProjectResponseDto(UUID id, String name, String slug, String description, ProjectFramework framework, ProjectSourceType sourceType, String repositoryUrl, String repositoryBranch, ProjectStatus status, ZonedDateTime createdAt, ZonedDateTime updatedAt) {
         this.id = id;
@@ -116,7 +125,40 @@ public class ProjectResponseDto {
         this.repositoryBranch = repositoryBranch;
     }
 
+    public Long getGithubRepositoryId() {
+        return githubRepositoryId;
+    }
+
+    public void setGithubRepositoryId(Long githubRepositoryId) {
+        this.githubRepositoryId = githubRepositoryId;
+    }
+
+    public String getGithubRepositoryName() {
+        return githubRepositoryName;
+    }
+
+    public void setGithubRepositoryName(String githubRepositoryName) {
+        this.githubRepositoryName = githubRepositoryName;
+    }
+
+    public String getGithubBranch() {
+        return githubBranch;
+    }
+
+    public void setGithubBranch(String githubBranch) {
+        this.githubBranch = githubBranch;
+    }
+
+    public String getGithubCommitSha() {
+        return githubCommitSha;
+    }
+
+    public void setGithubCommitSha(String githubCommitSha) {
+        this.githubCommitSha = githubCommitSha;
+    }
+
     public ProjectStatus getStatus() {
+
         return status;
     }
 

@@ -50,6 +50,19 @@ public class Project {
     @Column(name = "repository_branch", length = 100)
     private String repositoryBranch;
 
+    @Column(name = "github_repository_id")
+    private Long githubRepositoryId;
+
+    @Column(name = "github_repository_name")
+    private String githubRepositoryName;
+
+    @Column(name = "github_branch")
+    private String githubBranch;
+
+    @Column(name = "github_commit_sha", length = 64)
+    private String githubCommitSha;
+
+
     @NotNull
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
@@ -179,6 +192,38 @@ public class Project {
         this.createdAt = createdAt;
     }
 
+    public Long getGithubRepositoryId() {
+        return githubRepositoryId;
+    }
+
+    public void setGithubRepositoryId(Long githubRepositoryId) {
+        this.githubRepositoryId = githubRepositoryId;
+    }
+
+    public String getGithubRepositoryName() {
+        return githubRepositoryName;
+    }
+
+    public void setGithubRepositoryName(String githubRepositoryName) {
+        this.githubRepositoryName = githubRepositoryName;
+    }
+
+    public String getGithubBranch() {
+        return githubBranch;
+    }
+
+    public void setGithubBranch(String githubBranch) {
+        this.githubBranch = githubBranch;
+    }
+
+    public String getGithubCommitSha() {
+        return githubCommitSha;
+    }
+
+    public void setGithubCommitSha(String githubCommitSha) {
+        this.githubCommitSha = githubCommitSha;
+    }
+
     public ZonedDateTime getUpdatedAt() {
         return updatedAt;
     }
@@ -187,3 +232,4 @@ public class Project {
         this.updatedAt = updatedAt;
     }
 }
+

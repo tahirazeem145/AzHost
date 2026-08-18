@@ -20,10 +20,15 @@ export interface Project {
   sourceType: ProjectSourceType;
   repositoryUrl?: string;
   repositoryBranch?: string;
+  githubRepositoryId?: number;
+  githubRepositoryName?: string;
+  githubBranch?: string;
+  githubCommitSha?: string;
   status: ProjectStatus;
   createdAt: string;
   updatedAt: string;
 }
+
 
 export interface CreateProjectRequest {
   name: string;

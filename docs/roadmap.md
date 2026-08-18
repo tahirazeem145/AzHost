@@ -25,22 +25,18 @@ This roadmap outlines the 10-phase progression for building **AZHost**, from ini
 - [x] **Phase 3 — Project Detection & Analysis**
 - [x] **Phase 4 — Source Acquisition & Build Engine**
 - [x] **Phase 5 — Artifact Deployment & Static Hosting Engine**
-- [ ] **Phase 6 — Custom Domains & SSL Automation**
+- [x] **Phase 6 — Deployment Routing & Production Serving**
+- [x] **Phase 7 — GitHub Source Integration**
 
-- Implement target deployment routing and static asset serving engine.
-- Create container lifecycle manager for spinning up project containers.
-- Implement basic instant rollback mechanism to previous deployment builds.
-- Implement streaming log capture (`deployment_logs` entity) for real-time stdout/stderr visualization in the UI.
+## Phase 7 — GitHub Source Integration [COMPLETED]
+- Implement GitHub OAuth 2.0 connection (`github_connections` table).
+- Encrypt access tokens at rest using AES-256-GCM authenticated encryption.
+- CSRF state protection (single-use, 5m TTL).
+- Support repository listing, branch selection, and server-side commit SHA resolution.
+- Implement `GitHubSourceProvider` streaming zipball archives via HTTPS API without host git execution.
+- Safe archive extraction with ZIP-Slip, size limit, and path containment protection.
+- Phase 3 analysis, Phase 4 build, and Phase 5 deployment pipeline integration.
 
-## Phase 6 — Deployment Engine & Static Hosting
-- Implement target deployment routing and static asset serving engine.
-- Create container lifecycle manager for spinning up project containers.
-- Implement basic instant rollback mechanism to previous deployment builds.
-
-## Phase 7 — GitHub OAuth & Webhook Integration
-- Implement GitHub OAuth 2.0 authentication flow (`github_connections` entity).
-- Support automated repository browsing and branch selection.
-- Implement GitHub Webhook listeners for automatic push-to-deploy triggers.
 
 ## Phase 8 — Automation, Self-Healing & Recovery
 - Implement automated container health monitors and auto-restart policies.

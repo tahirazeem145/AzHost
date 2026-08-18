@@ -18,6 +18,9 @@ public class BuildResponseDto {
     private String buildCommand;
     private String outputDirectory;
     private String artifactId;
+    private com.azhost.entity.ProjectSourceType sourceType;
+    private Long githubRepositoryId;
+    private String githubCommitSha;
     private ZonedDateTime startedAt;
     private ZonedDateTime completedAt;
     private Long durationMs;
@@ -37,6 +40,9 @@ public class BuildResponseDto {
         this.buildCommand = entity.getBuildCommand();
         this.outputDirectory = entity.getOutputDirectory();
         this.artifactId = entity.getArtifactId();
+        this.sourceType = entity.getSourceType();
+        this.githubRepositoryId = entity.getGithubRepositoryId();
+        this.githubCommitSha = entity.getGithubCommitSha();
         this.startedAt = entity.getStartedAt();
         this.completedAt = entity.getCompletedAt();
         this.durationMs = entity.getDurationMs();
@@ -44,6 +50,7 @@ public class BuildResponseDto {
         this.errorMessage = entity.getErrorMessage();
         this.createdAt = entity.getCreatedAt();
     }
+
 
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
@@ -72,7 +79,17 @@ public class BuildResponseDto {
     public String getArtifactId() { return artifactId; }
     public void setArtifactId(String artifactId) { this.artifactId = artifactId; }
 
+    public com.azhost.entity.ProjectSourceType getSourceType() { return sourceType; }
+    public void setSourceType(com.azhost.entity.ProjectSourceType sourceType) { this.sourceType = sourceType; }
+
+    public Long getGithubRepositoryId() { return githubRepositoryId; }
+    public void setGithubRepositoryId(Long githubRepositoryId) { this.githubRepositoryId = githubRepositoryId; }
+
+    public String getGithubCommitSha() { return githubCommitSha; }
+    public void setGithubCommitSha(String githubCommitSha) { this.githubCommitSha = githubCommitSha; }
+
     public ZonedDateTime getStartedAt() { return startedAt; }
+
     public void setStartedAt(ZonedDateTime startedAt) { this.startedAt = startedAt; }
 
     public ZonedDateTime getCompletedAt() { return completedAt; }

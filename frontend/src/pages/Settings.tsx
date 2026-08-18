@@ -2,10 +2,10 @@ import React from 'react';
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import { Shield, Server } from 'lucide-react';
 import { useBackendStatus } from '../context/BackendStatusContext';
+import { GitHubConnectionCard } from '../components/GitHubConnectionCard';
 
 export const Settings: React.FC = () => {
   const { isConnected, appInfo } = useBackendStatus();
-
 
   return (
     <DashboardLayout title="Settings">
@@ -15,8 +15,12 @@ export const Settings: React.FC = () => {
           <p className="text-slate-400 text-sm">System configuration, security settings, and environment info.</p>
         </div>
 
+        {/* GitHub Account Connection Section */}
+        <GitHubConnectionCard />
+
         {/* System Diagnostics Card */}
         <div className="glass-panel p-6 space-y-4">
+
           <div className="flex items-center gap-3 border-b border-slate-800 pb-4">
             <Server className="w-5 h-5 text-blue-400" />
             <h3 className="text-base font-semibold text-white">Platform Architecture Status</h3>

@@ -94,8 +94,12 @@ public class BuildService {
                 analysis.getOutputDirectory() != null ? analysis.getOutputDirectory() : "dist",
                 workspaceId
         );
+        buildEntity.setSourceType(project.getSourceType());
+        buildEntity.setGithubRepositoryId(project.getGithubRepositoryId());
+        buildEntity.setGithubCommitSha(project.getGithubCommitSha());
 
         ProjectBuildEntity savedEntity = projectBuildRepository.save(buildEntity);
+
         buildManager.registerActiveBuild(projectId, savedEntity.getId());
 
         Path workspacePath;
