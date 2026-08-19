@@ -120,7 +120,6 @@ public class GitHubWebhookService {
      * Returns a human-readable outcome string for logging.
      */
     @Async
-    @Transactional
     public void processPushEventAsync(
             String deliveryId,
             Map<String, Object> payload,
