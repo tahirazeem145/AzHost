@@ -26,11 +26,13 @@ public class ProjectService {
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
     private final SlugService slugService;
+    private final AuditLogService auditLogService;
 
-    public ProjectService(ProjectRepository projectRepository, UserRepository userRepository, SlugService slugService) {
+    public ProjectService(ProjectRepository projectRepository, UserRepository userRepository, SlugService slugService, AuditLogService auditLogService) {
         this.projectRepository = projectRepository;
         this.userRepository = userRepository;
         this.slugService = slugService;
+        this.auditLogService = auditLogService;
     }
 
     @Transactional
@@ -50,6 +52,7 @@ public class ProjectService {
         );
 
         Project savedProject = projectRepository.save(project);
+        auditLogService.log(user, savedProject, "PROJECT_CREATED", "Project", savedProject.getId().toString(), "SUCCESS", "Created project " + savedProject.getName());
         logger.info("Created project '{}' with slug '{}' for user '{}'", savedProject.getName(), savedProject.getSlug(), userEmail);
         return new ProjectResponseDto(savedProject);
     }
@@ -109,6 +112,7 @@ public class ProjectService {
         }
 
         Project updatedProject = projectRepository.save(project);
+        auditLogService.log(user, updatedProject, "PROJECT_UPDATED", "Project", updatedProject.getId().toString(), "SUCCESS", "Updated project " + updatedProject.getName());
         logger.info("Updated project '{}' (ID: {}) for user '{}'", updatedProject.getName(), id, userEmail);
         return new ProjectResponseDto(updatedProject);
 
@@ -120,6 +124,7 @@ public class ProjectService {
         Project project = projectRepository.findByIdAndUserId(id, user.getId())
                 .orElseThrow(() -> new ProjectNotFoundException("Project not found with ID: " + id));
         projectRepository.delete(project);
+        auditLogService.log(user, null, "PROJECT_DELETED", "Project", id.toString(), "SUCCESS", "Deleted project " + project.getName());
         logger.info("Deleted project '{}' (ID: {}) for user '{}'", project.getName(), id, userEmail);
     }
 

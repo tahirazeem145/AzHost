@@ -31,5 +31,9 @@ public interface ProjectRepository extends JpaRepository<Project, UUID> {
      * Used by the webhook handler to identify the target project.
      */
     List<Project> findAllByGithubRepositoryId(Long githubRepositoryId);
+
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT p FROM Project p WHERE p.id = :id")
+    Optional<Project> findAndLockById(@Param("id") UUID id);
 }
 

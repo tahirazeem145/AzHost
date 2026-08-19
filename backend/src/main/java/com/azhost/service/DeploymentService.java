@@ -44,6 +44,7 @@ public class DeploymentService {
     private final BuildWorkspaceManager buildWorkspaceManager;
     private final DeploymentValidator deploymentValidator;
     private final DeploymentManager deploymentManager;
+    private final AuditLogService auditLogService;
 
     @Value("${azhost.server.base-url:http://localhost:8080}")
     private String serverBaseUrl;
@@ -55,7 +56,8 @@ public class DeploymentService {
             UserRepository userRepository,
             BuildWorkspaceManager buildWorkspaceManager,
             DeploymentValidator deploymentValidator,
-            DeploymentManager deploymentManager
+            DeploymentManager deploymentManager,
+            AuditLogService auditLogService
     ) {
         this.projectRepository = projectRepository;
         this.projectBuildRepository = projectBuildRepository;
@@ -64,6 +66,7 @@ public class DeploymentService {
         this.buildWorkspaceManager = buildWorkspaceManager;
         this.deploymentValidator = deploymentValidator;
         this.deploymentManager = deploymentManager;
+        this.auditLogService = auditLogService;
     }
 
     @Transactional
@@ -88,6 +91,7 @@ public class DeploymentService {
 
         DeploymentEntity deploymentEntity = new DeploymentEntity(project, build, build.getArtifactId());
         DeploymentEntity savedEntity = deploymentRepository.save(deploymentEntity);
+        auditLogService.log(user, project, "DEPLOYMENT_CREATED", "Deployment", savedEntity.getId().toString(), "SUCCESS", "Created deployment from build " + build.getId());
 
         String generatedUrl = serverBaseUrl + "/api/deployments/" + savedEntity.getId() + "/files/index.html";
 
@@ -143,6 +147,7 @@ public class DeploymentService {
             entity.setFailedAt(ZonedDateTime.now());
             deploymentRepository.save(entity);
             deploymentManager.unregisterActiveDeployment(projectId);
+            auditLogService.log(user, project, "DEPLOYMENT_CANCELLED", "Deployment", deploymentId.toString(), "SUCCESS", "Cancelled deployment");
         }
 
         boolean isActive = project.getActiveDeployment() != null && project.getActiveDeployment().getId().equals(entity.getId());
@@ -164,6 +169,7 @@ public class DeploymentService {
 
         project.setActiveDeployment(entity);
         projectRepository.save(project);
+        auditLogService.log(user, project, "ROLLBACK_PERFORMED", "Deployment", deploymentId.toString(), "SUCCESS", "Rolled back project to deployment " + deploymentId);
         logger.info("Rolled back project '{}' to deployment ID: {}", project.getName(), entity.getId());
 
         return new DeploymentResponseDto(entity, true);
@@ -171,9 +177,18 @@ public class DeploymentService {
 
     @Transactional
     public void setActiveDeploymentForProject(UUID projectId, UUID deploymentId) {
-        Project project = projectRepository.findById(projectId).orElse(null);
+        Project project = projectRepository.findAndLockById(projectId).orElse(null);
         DeploymentEntity deployment = deploymentRepository.findById(deploymentId).orElse(null);
         if (project != null && deployment != null && deployment.getStatus() == DeploymentStatus.SUCCESS) {
+            DeploymentEntity currentActive = project.getActiveDeployment();
+            if (currentActive != null) {
+                // If candidate deployment's creation time is before the currently active one, reject promotion
+                if (deployment.getCreatedAt().isBefore(currentActive.getCreatedAt())) {
+                    logger.warn("Prevented stale deployment promotion: Candidate deployment '{}' (created: {}) is older than currently active deployment '{}' (created: {})",
+                            deployment.getId(), deployment.getCreatedAt(), currentActive.getId(), currentActive.getCreatedAt());
+                    return;
+                }
+            }
             project.setActiveDeployment(deployment);
             projectRepository.save(project);
             logger.info("Updated active deployment for project '{}' to deployment ID: {}", project.getName(), deploymentId);
