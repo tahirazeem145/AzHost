@@ -26,6 +26,11 @@ public class UpdateProjectRequest {
     @NotNull(message = "Status selection is required")
     private ProjectStatus status;
 
+    private Boolean autoDeploy;
+
+    @Size(max = 255, message = "Auto-deploy branch cannot exceed 255 characters")
+    private String autoDeployBranch;
+
     public UpdateProjectRequest() {}
 
     public UpdateProjectRequest(String name, String description, ProjectFramework framework, String repositoryUrl, String repositoryBranch, ProjectStatus status) {
@@ -83,5 +88,21 @@ public class UpdateProjectRequest {
 
     public void setStatus(ProjectStatus status) {
         this.status = status;
+    }
+
+    public Boolean getAutoDeploy() {
+        return autoDeploy;
+    }
+
+    public void setAutoDeploy(Boolean autoDeploy) {
+        this.autoDeploy = autoDeploy;
+    }
+
+    public String getAutoDeployBranch() {
+        return autoDeployBranch;
+    }
+
+    public void setAutoDeployBranch(String autoDeployBranch) {
+        this.autoDeployBranch = autoDeployBranch;
     }
 }

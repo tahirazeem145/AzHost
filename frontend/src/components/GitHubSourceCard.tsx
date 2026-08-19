@@ -22,6 +22,17 @@ export const GitHubSourceCard: React.FC<GitHubSourceCardProps> = ({
   const [saving, setSaving] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Auto-deploy state
+  const [autoDeployEnabled, setAutoDeployEnabled] = useState<boolean>(project.autoDeploy ?? false);
+  const [autoDeployBranch, setAutoDeployBranch] = useState<string>(project.autoDeployBranch ?? project.githubBranch ?? 'main');
+  const [savingAutoDeploy, setSavingAutoDeploy] = useState<boolean>(false);
+  const [autoDeploySuccess, setAutoDeploySuccess] = useState<boolean>(false);
+
+  // Webhook secret state
+  const [webhookSecret, setWebhookSecret] = useState<string>('');
+  const [savingSecret, setSavingSecret] = useState<boolean>(false);
+  const [secretSaved, setSecretSaved] = useState<boolean>(false);
+
   const isLinked = project.sourceType === 'GITHUB' && !!project.githubRepositoryId;
 
   const handleLinkSubmit = async () => {
@@ -68,8 +79,44 @@ export const GitHubSourceCard: React.FC<GitHubSourceCardProps> = ({
     }
   };
 
+  const handleSaveAutoDeploySettings = async () => {
+    try {
+      setSavingAutoDeploy(true);
+      setAutoDeploySuccess(false);
+      const updated = await githubService.updateAutoDeploySettings(project.id, {
+        autoDeploy: autoDeployEnabled,
+        autoDeployBranch: autoDeployBranch || project.githubBranch,
+      });
+      onProjectUpdated(updated);
+      setAutoDeploySuccess(true);
+      setTimeout(() => setAutoDeploySuccess(false), 3000);
+    } catch (err: any) {
+      console.error('Failed to update auto-deploy settings:', err);
+      setError(err.message || 'Failed to save auto-deploy settings.');
+    } finally {
+      setSavingAutoDeploy(false);
+    }
+  };
+
+  const handleSaveWebhookSecret = async () => {
+    if (!webhookSecret.trim()) return;
+    try {
+      setSavingSecret(true);
+      await githubService.setWebhookSecret(project.id, webhookSecret);
+      setWebhookSecret('');
+      setSecretSaved(true);
+      setTimeout(() => setSecretSaved(false), 4000);
+    } catch (err: any) {
+      console.error('Failed to save webhook secret:', err);
+      setError(err.message || 'Failed to save webhook secret.');
+    } finally {
+      setSavingSecret(false);
+    }
+  };
+
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl text-white">
+      {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-3">
           <div className="p-2 bg-slate-800 rounded-lg text-indigo-400">
@@ -91,13 +138,14 @@ export const GitHubSourceCard: React.FC<GitHubSourceCardProps> = ({
       )}
 
       {isLinked && !isLinking ? (
-        <div className="space-y-4">
+        <div className="space-y-5">
+          {/* Connected Repository Info */}
           <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-xl space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs uppercase tracking-wider font-semibold text-slate-400">Connected Repository</span>
               <span className="px-2.5 py-0.5 text-xs bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 rounded-full font-medium">GitHub</span>
             </div>
-            
+
             <div className="flex items-center justify-between">
               <div>
                 <h4 className="text-base font-semibold text-white">{project.githubRepositoryName || project.repositoryUrl}</h4>
@@ -133,6 +181,105 @@ export const GitHubSourceCard: React.FC<GitHubSourceCardProps> = ({
             </div>
           </div>
 
+          {/* Auto-Deploy Settings */}
+          <div className="p-4 bg-slate-950/40 border border-slate-800 rounded-xl space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="text-sm font-semibold text-white">Auto-Deploy</h4>
+                <p className="text-xs text-slate-400 mt-0.5">Automatically build and deploy on every push to the configured branch.</p>
+              </div>
+              {/* Toggle */}
+              <button
+                id="auto-deploy-toggle"
+                onClick={() => setAutoDeployEnabled(v => !v)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                  autoDeployEnabled ? 'bg-indigo-600' : 'bg-slate-700'
+                }`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  autoDeployEnabled ? 'translate-x-6' : 'translate-x-1'
+                }`} />
+              </button>
+            </div>
+
+            {autoDeployEnabled && (
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-slate-400">Deploy Branch</label>
+                <input
+                  id="auto-deploy-branch-input"
+                  type="text"
+                  value={autoDeployBranch}
+                  onChange={e => setAutoDeployBranch(e.target.value)}
+                  placeholder={project.githubBranch ?? 'main'}
+                  className="w-full bg-slate-900 border border-slate-700 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+            )}
+
+            <div className="flex items-center space-x-3">
+              <button
+                id="save-auto-deploy-btn"
+                onClick={handleSaveAutoDeploySettings}
+                disabled={savingAutoDeploy}
+                className="px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-lg transition-all"
+              >
+                {savingAutoDeploy ? 'Saving...' : 'Save Settings'}
+              </button>
+              {autoDeploySuccess && (
+                <span className="text-xs text-emerald-400 flex items-center space-x-1">
+                  <span>✓ Saved</span>
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Webhook Secret Configuration */}
+          <div className="p-4 bg-slate-950/40 border border-slate-800 rounded-xl space-y-3">
+            <div>
+              <h4 className="text-sm font-semibold text-white">Webhook Secret</h4>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Configure the webhook endpoint at{' '}
+                <code className="text-indigo-300 text-xs bg-slate-800 px-1 rounded">
+                  {window.location.origin}/api/webhooks/github
+                </code>
+                {' '}in your GitHub repository settings.
+              </p>
+            </div>
+
+            <div className="flex gap-2">
+              <input
+                id="webhook-secret-input"
+                type="password"
+                value={webhookSecret}
+                onChange={e => setWebhookSecret(e.target.value)}
+                placeholder="Enter webhook secret (matches GitHub repo settings)"
+                className="flex-1 bg-slate-900 border border-slate-700 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500"
+                autoComplete="new-password"
+              />
+              <button
+                id="save-webhook-secret-btn"
+                onClick={handleSaveWebhookSecret}
+                disabled={savingSecret || !webhookSecret.trim()}
+                className="px-4 py-2 text-sm bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white rounded-lg transition-all whitespace-nowrap"
+              >
+                {savingSecret ? 'Saving...' : 'Save Secret'}
+              </button>
+            </div>
+
+            {secretSaved && (
+              <p className="text-xs text-emerald-400 flex items-center space-x-1">
+                <span>✓ Webhook secret saved securely (encrypted at rest)</span>
+              </p>
+            )}
+
+            <div className="p-3 bg-amber-950/30 border border-amber-700/30 rounded-lg">
+              <p className="text-xs text-amber-300/80">
+                <strong>Security:</strong> The webhook secret is stored server-side with AES-256-GCM encryption and is never accessible via the API. Use the same value in your GitHub repository webhook settings under <em>Settings → Webhooks</em>.
+              </p>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
           <div className="flex items-center space-x-3">
             <button
               onClick={() => setIsLinking(true)}

@@ -62,6 +62,16 @@ public class Project {
     @Column(name = "github_commit_sha", length = 64)
     private String githubCommitSha;
 
+    // Auto-deploy settings
+    @Column(name = "auto_deploy", nullable = false)
+    private boolean autoDeploy = false;
+
+    @Column(name = "auto_deploy_branch", length = 255)
+    private String autoDeployBranch;
+
+    // Per-project GitHub webhook secret — stored encrypted at rest
+    @Column(name = "encrypted_webhook_secret", columnDefinition = "TEXT")
+    private String encryptedWebhookSecret;
 
     @NotNull
     @Enumerated(EnumType.STRING)
@@ -230,6 +240,30 @@ public class Project {
 
     public void setUpdatedAt(ZonedDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public boolean isAutoDeploy() {
+        return autoDeploy;
+    }
+
+    public void setAutoDeploy(boolean autoDeploy) {
+        this.autoDeploy = autoDeploy;
+    }
+
+    public String getAutoDeployBranch() {
+        return autoDeployBranch;
+    }
+
+    public void setAutoDeployBranch(String autoDeployBranch) {
+        this.autoDeployBranch = autoDeployBranch;
+    }
+
+    public String getEncryptedWebhookSecret() {
+        return encryptedWebhookSecret;
+    }
+
+    public void setEncryptedWebhookSecret(String encryptedWebhookSecret) {
+        this.encryptedWebhookSecret = encryptedWebhookSecret;
     }
 }
 

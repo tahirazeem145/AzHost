@@ -10,6 +10,7 @@ import com.azhost.github.dto.GitHubRepositoryDto;
 import com.azhost.github.dto.LinkGitHubRequestDto;
 import com.azhost.github.entity.GitHubConnectionEntity;
 import com.azhost.github.security.GitHubSecurityPolicy;
+import com.azhost.github.security.GitHubTokenEncryptor;
 import com.azhost.repository.ProjectRepository;
 import com.azhost.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,6 +29,7 @@ class GitHubProjectLinkTest {
     private GitHubOAuthService oauthService;
     private GitHubRepositoryService repositoryService;
     private GitHubSecurityPolicy securityPolicy;
+    private GitHubTokenEncryptor tokenEncryptor;
     private ProjectRepository projectRepository;
     private UserRepository userRepository;
     private GitHubController controller;
@@ -41,10 +43,11 @@ class GitHubProjectLinkTest {
         oauthService = mock(GitHubOAuthService.class);
         repositoryService = mock(GitHubRepositoryService.class);
         securityPolicy = mock(GitHubSecurityPolicy.class);
+        tokenEncryptor = mock(GitHubTokenEncryptor.class);
         projectRepository = mock(ProjectRepository.class);
         userRepository = mock(UserRepository.class);
 
-        controller = new GitHubController(oauthService, repositoryService, securityPolicy, projectRepository, userRepository);
+        controller = new GitHubController(oauthService, repositoryService, securityPolicy, tokenEncryptor, projectRepository, userRepository);
 
         testUser = new User("developer@azhost.dev", "hash", "Dev");
         testUser.setId(UUID.randomUUID());

@@ -1,5 +1,5 @@
 import { GitHubBranch, GitHubConnection, GitHubRepository, LinkGitHubRequest } from '../types/github';
-import { Project } from '../types/project';
+import { AutoDeploySettingsRequest, Project } from '../types/project';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
@@ -79,5 +79,45 @@ export const githubService = {
       throw new Error(`Failed to unlink GitHub repository: ${response.status}`);
     }
     return await response.json();
+  },
+
+  /**
+   * Update auto-deploy settings for a project.
+   * Calls PATCH /api/projects/:id/github/auto-deploy
+   */
+  async updateAutoDeploySettings(projectId: string, settings: AutoDeploySettingsRequest): Promise<Project> {
+    const response = await fetch(`${API_BASE_URL}/api/projects/${projectId}/github/auto-deploy`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify(settings),
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `Failed to update auto-deploy settings: ${response.status}`);
+    }
+    return await response.json();
+  },
+
+  /**
+   * Set or rotate the per-project GitHub webhook secret.
+   * The secret is only ever sent once to the backend during setup;
+   * it is stored encrypted and never returned to the frontend.
+   */
+  async setWebhookSecret(projectId: string, webhookSecret: string): Promise<void> {
+    const response = await fetch(`${API_BASE_URL}/api/projects/${projectId}/github/webhook-secret`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({ webhookSecret }),
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `Failed to set webhook secret: ${response.status}`);
+    }
   },
 };

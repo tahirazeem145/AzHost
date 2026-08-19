@@ -25,4 +25,11 @@ public interface ProjectRepository extends JpaRepository<Project, UUID> {
 
     @Query("SELECT p FROM Project p WHERE p.user.id = :userId AND (LOWER(p.name) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(p.description) LIKE LOWER(CONCAT('%', :query, '%'))) ORDER BY p.createdAt DESC")
     List<Project> searchByUserIdAndQuery(@Param("userId") UUID userId, @Param("query") String query);
+
+    /**
+     * Find all projects linked to a specific GitHub repository ID.
+     * Used by the webhook handler to identify the target project.
+     */
+    List<Project> findAllByGithubRepositoryId(Long githubRepositoryId);
 }
+

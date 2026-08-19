@@ -24,6 +24,8 @@ export interface Project {
   githubRepositoryName?: string;
   githubBranch?: string;
   githubCommitSha?: string;
+  autoDeploy?: boolean;
+  autoDeployBranch?: string;
   status: ProjectStatus;
   createdAt: string;
   updatedAt: string;
@@ -46,9 +48,17 @@ export interface UpdateProjectRequest {
   repositoryUrl?: string;
   repositoryBranch?: string;
   status: ProjectStatus;
+  autoDeploy?: boolean;
+  autoDeployBranch?: string;
+}
+
+export interface AutoDeploySettingsRequest {
+  autoDeploy: boolean;
+  autoDeployBranch?: string;
 }
 
 export interface ProjectListResponse {
   projects: Project[];
   totalCount: number;
 }
+

@@ -8,6 +8,7 @@ import com.azhost.github.dto.GitHubConnectionResponseDto;
 import com.azhost.github.dto.GitHubRepositoryDto;
 import com.azhost.github.entity.GitHubConnectionEntity;
 import com.azhost.github.security.GitHubSecurityPolicy;
+import com.azhost.github.security.GitHubTokenEncryptor;
 import com.azhost.repository.ProjectRepository;
 import com.azhost.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,6 +44,9 @@ class GitHubControllerTest {
 
     @MockBean
     private GitHubSecurityPolicy securityPolicy;
+
+    @MockBean
+    private GitHubTokenEncryptor tokenEncryptor;
 
     @MockBean
     private ProjectRepository projectRepository;

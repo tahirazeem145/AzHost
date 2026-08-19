@@ -28,7 +28,8 @@ azhost:
     redirect-uri: http://localhost:8080/api/github/callback
     api-base-url: https://api.github.com
     oauth-url: https://github.com/login/oauth
+    webhook-secret: test-global-webhook-secret-for-tests
   security:
     github-token-encryption-key: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
-
-
+  frontend:
+    base-url: http://localhost:5173

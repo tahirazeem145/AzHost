@@ -100,9 +100,18 @@ public class ProjectService {
         project.setRepositoryBranch(request.getRepositoryBranch() != null && !request.getRepositoryBranch().isBlank() ? request.getRepositoryBranch().trim() : "main");
         project.setStatus(request.getStatus());
 
+        // Auto-deploy settings
+        if (request.getAutoDeploy() != null) {
+            project.setAutoDeploy(request.getAutoDeploy());
+        }
+        if (request.getAutoDeployBranch() != null) {
+            project.setAutoDeployBranch(request.getAutoDeployBranch().isBlank() ? null : request.getAutoDeployBranch().trim());
+        }
+
         Project updatedProject = projectRepository.save(project);
         logger.info("Updated project '{}' (ID: {}) for user '{}'", updatedProject.getName(), id, userEmail);
         return new ProjectResponseDto(updatedProject);
+
     }
 
     @Transactional

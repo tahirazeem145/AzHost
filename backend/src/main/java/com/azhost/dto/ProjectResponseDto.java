@@ -23,6 +23,8 @@ public class ProjectResponseDto {
     private String githubBranch;
     private String githubCommitSha;
     private ProjectStatus status;
+    private boolean autoDeploy;
+    private String autoDeployBranch;
     private ZonedDateTime createdAt;
     private ZonedDateTime updatedAt;
 
@@ -42,6 +44,8 @@ public class ProjectResponseDto {
         this.githubBranch = project.getGithubBranch();
         this.githubCommitSha = project.getGithubCommitSha();
         this.status = project.getStatus();
+        this.autoDeploy = project.isAutoDeploy();
+        this.autoDeployBranch = project.getAutoDeployBranch();
         this.createdAt = project.getCreatedAt();
         this.updatedAt = project.getUpdatedAt();
     }
@@ -180,5 +184,21 @@ public class ProjectResponseDto {
 
     public void setUpdatedAt(ZonedDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public boolean isAutoDeploy() {
+        return autoDeploy;
+    }
+
+    public void setAutoDeploy(boolean autoDeploy) {
+        this.autoDeploy = autoDeploy;
+    }
+
+    public String getAutoDeployBranch() {
+        return autoDeployBranch;
+    }
+
+    public void setAutoDeployBranch(String autoDeployBranch) {
+        this.autoDeployBranch = autoDeployBranch;
     }
 }

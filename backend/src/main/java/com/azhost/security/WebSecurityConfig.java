@@ -20,12 +20,18 @@ public class WebSecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/health", "/api/info", "/api/projects/**", "/api/deployments/**", "/api/github/**").permitAll()
+                // Health and info endpoints
+                .requestMatchers("/api/health", "/api/info").permitAll()
+                // Project and deployment endpoints
+                .requestMatchers("/api/projects/**", "/api/deployments/**").permitAll()
+                // GitHub legacy paths (frontend compatibility)
+                .requestMatchers("/api/github/**").permitAll()
+                // GitHub integrations paths (Phase 7 spec)
+                .requestMatchers("/api/integrations/github/**").permitAll()
+                // GitHub webhook receiver (signature-verified, not session-authenticated)
+                .requestMatchers("/api/webhooks/github").permitAll()
                 .anyRequest().authenticated()
             );
-
-
-
 
         return http.build();
     }
