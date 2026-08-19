@@ -176,8 +176,8 @@ public class DeploymentService {
     }
 
     @Transactional
-    public void setActiveDeploymentForProject(UUID projectId, UUID deploymentId) {
-        Project project = projectRepository.findAndLockById(projectId).orElse(null);
+    public synchronized void setActiveDeploymentForProject(UUID projectId, UUID deploymentId) {
+        Project project = projectRepository.findById(projectId).orElse(null);
         DeploymentEntity deployment = deploymentRepository.findById(deploymentId).orElse(null);
         if (project != null && deployment != null && deployment.getStatus() == DeploymentStatus.SUCCESS) {
             DeploymentEntity currentActive = project.getActiveDeployment();
