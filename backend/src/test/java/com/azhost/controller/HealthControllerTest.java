@@ -26,6 +26,15 @@ class HealthControllerTest {
     @MockBean
     private SystemInfoService systemInfoService;
 
+    @MockBean
+    private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+
+    @MockBean
+    private com.azhost.build.workspace.BuildWorkspaceManager buildWorkspaceManager;
+
+    @MockBean
+    private com.azhost.build.executor.BuildExecutor buildExecutor;
+
     @Test
     void getHealth_ShouldReturnUpStatus() throws Exception {
         given(systemInfoService.getHealthStatus()).willReturn(

@@ -37,6 +37,9 @@ class ProjectServiceTest {
     @Mock
     private SlugService slugService;
 
+    @Mock
+    private AuditLogService auditLogService;
+
     @InjectMocks
     private ProjectService projectService;
 

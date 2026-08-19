@@ -5,7 +5,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-@Configuration
+@org.springframework.context.annotation.Configuration
+@org.springframework.boot.context.properties.EnableConfigurationProperties(AzHostBuildProperties.class)
 public class WebMvcConfig implements WebMvcConfigurer {
 
     private final RateLimitingInterceptor rateLimitingInterceptor;
