@@ -100,15 +100,12 @@ public class BuildService {
 
         ProjectBuildEntity savedEntity = projectBuildRepository.save(buildEntity);
 
-        buildManager.registerActiveBuild(projectId, savedEntity.getId());
-
         Path workspacePath;
         try {
             workspacePath = workspaceManager.createWorkspace(workspaceId);
             SourceAcquisitionResult acquiredSource = sourceAcquisitionService.acquireSource(project, workspacePath);
             logger.info("Source acquired for build ID {}: {} files", savedEntity.getId(), acquiredSource.getTotalFileCount());
         } catch (IOException | SecurityException e) {
-            buildManager.unregisterActiveBuild(projectId);
             savedEntity.setStatus(com.azhost.build.BuildStatus.FAILED);
             savedEntity.setErrorMessage("Source acquisition failed: " + e.getMessage());
             projectBuildRepository.save(savedEntity);
@@ -143,7 +140,7 @@ public class BuildService {
     }
 
     @Transactional(readOnly = true)
-    public BuildLogResponseDto getBuildLogs(UUID projectId, UUID buildId, String userEmail) {
+    public BuildLogResponseDto getBuildLogs(UUID projectId, UUID buildId, String userEmail, int page, int size) {
         User user = getUser(userEmail);
         projectRepository.findByIdAndUserId(projectId, user.getId())
                 .orElseThrow(() -> new ProjectNotFoundException("Project not found with ID: " + projectId));
@@ -151,10 +148,20 @@ public class BuildService {
         ProjectBuildEntity entity = projectBuildRepository.findByIdAndProjectId(buildId, projectId)
                 .orElseThrow(() -> new BuildNotFoundException("Build not found with ID: " + buildId));
 
-        BuildLogStreamer streamer = buildManager.getLogStreamer(buildId);
-        List<String> lines = streamer.getLogLines();
+        int pageSize = Math.min(size, 500);
+        if (pageSize <= 0) pageSize = 100;
 
-        return new BuildLogResponseDto(entity.getId(), entity.getStatus(), lines, streamer.isTruncated());
+        BuildLogStreamer streamer = buildManager.getLogStreamer(buildId);
+        List<String> allLines = streamer.getLogLines();
+
+        int fromIndex = page * pageSize;
+        if (fromIndex >= allLines.size() || fromIndex < 0) {
+            return new BuildLogResponseDto(entity.getId(), entity.getStatus(), List.of(), streamer.isTruncated());
+        }
+        int toIndex = Math.min(fromIndex + pageSize, allLines.size());
+        List<String> paginatedLines = allLines.subList(fromIndex, toIndex);
+
+        return new BuildLogResponseDto(entity.getId(), entity.getStatus(), paginatedLines, streamer.isTruncated());
     }
 
     @Transactional

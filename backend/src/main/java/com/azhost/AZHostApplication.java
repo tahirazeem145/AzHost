@@ -15,6 +15,7 @@ import org.springframework.scheduling.annotation.EnableAsync;
  */
 @SpringBootApplication
 @EnableAsync
+@org.springframework.scheduling.annotation.EnableScheduling
 public class AZHostApplication {
 
     private static final Logger logger = LoggerFactory.getLogger(AZHostApplication.class);

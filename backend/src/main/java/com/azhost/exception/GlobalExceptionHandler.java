@@ -42,6 +42,19 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(error, HttpStatus.CONFLICT);
     }
 
+    @ExceptionHandler(BuildQueueFullException.class)
+    public ResponseEntity<ErrorResponseDto> handleBuildQueueFull(BuildQueueFullException ex, HttpServletRequest request) {
+        logger.warn("Build queue full: {}", ex.getMessage());
+        ErrorResponseDto error = new ErrorResponseDto(
+                LocalDateTime.now(),
+                HttpStatus.TOO_MANY_REQUESTS.value(),
+                HttpStatus.TOO_MANY_REQUESTS.getReasonPhrase(),
+                ex.getMessage(),
+                request.getRequestURI()
+        );
+        return new ResponseEntity<>(error, HttpStatus.TOO_MANY_REQUESTS);
+    }
+
     @ExceptionHandler(BuildAlreadyInProgressException.class)
     public ResponseEntity<ErrorResponseDto> handleBuildAlreadyInProgress(BuildAlreadyInProgressException ex, HttpServletRequest request) {
         logger.warn("Build already in progress: {}", ex.getMessage());

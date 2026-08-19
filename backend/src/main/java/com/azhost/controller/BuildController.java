@@ -45,9 +45,11 @@ public class BuildController {
     @GetMapping("/{buildId}/logs")
     public ResponseEntity<BuildLogResponseDto> getBuildLogs(
             @PathVariable UUID projectId,
-            @PathVariable UUID buildId
+            @PathVariable UUID buildId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size
     ) {
-        BuildLogResponseDto response = buildService.getBuildLogs(projectId, buildId, DevUserInitializer.DEV_USER_EMAIL);
+        BuildLogResponseDto response = buildService.getBuildLogs(projectId, buildId, DevUserInitializer.DEV_USER_EMAIL, page, size);
         return ResponseEntity.ok(response);
     }
 
