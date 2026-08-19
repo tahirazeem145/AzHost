@@ -33,3 +33,5 @@ azhost:
     github-token-encryption-key: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
   frontend:
     base-url: http://localhost:5173
+  rate-limit:
+    enabled: false
