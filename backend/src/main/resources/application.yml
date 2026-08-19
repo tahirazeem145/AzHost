@@ -59,3 +59,18 @@ azhost:
     github-token-encryption-key: ${AZHOST_GITHUB_TOKEN_ENCRYPTION_KEY:${GITHUB_TOKEN_ENCRYPTION_KEY:}}
   frontend:
     base-url: ${AZHOST_FRONTEND_BASE_URL:http://localhost:5173}
+  build:
+    max-concurrent-builds: ${AZHOST_MAX_CONCURRENT_BUILDS:2}
+    queue-capacity: ${AZHOST_BUILD_QUEUE_CAPACITY:50}
+    timeout-seconds: ${AZHOST_BUILD_TIMEOUT_SECONDS:600}
+    max-retries: ${AZHOST_BUILD_MAX_RETRIES:2}
+    cpu-limit: ${AZHOST_BUILD_CPU_LIMIT:2.0}
+    memory-limit: ${AZHOST_BUILD_MEMORY_LIMIT:2048m}
+    pids-limit: ${AZHOST_BUILD_PIDS_LIMIT:100}
+  deployment:
+    timeout-seconds: ${AZHOST_DEPLOYMENT_TIMEOUT_SECONDS:300}
+    retention:
+      max-deployments-per-project: ${AZHOST_DEPLOYMENT_RETENTION_MAX:20}
+  rate-limit:
+    enabled: ${AZHOST_RATE_LIMIT_ENABLED:true}
+    requests-per-minute: ${AZHOST_RATE_LIMIT_RPM:60}

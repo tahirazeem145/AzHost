@@ -63,6 +63,9 @@ public class ProjectBuildEntity {
     @Column(name = "github_commit_sha", length = 64)
     private String githubCommitSha;
 
+    @Column(name = "docker_container_id")
+    private String dockerContainerId;
+
     @Column(name = "started_at")
     private ZonedDateTime startedAt;
 
@@ -238,6 +241,14 @@ public class ProjectBuildEntity {
 
     public void setGithubCommitSha(String githubCommitSha) {
         this.githubCommitSha = githubCommitSha;
+    }
+
+    public String getDockerContainerId() {
+        return dockerContainerId;
+    }
+
+    public void setDockerContainerId(String dockerContainerId) {
+        this.dockerContainerId = dockerContainerId;
     }
 
     public ZonedDateTime getCreatedAt() {
