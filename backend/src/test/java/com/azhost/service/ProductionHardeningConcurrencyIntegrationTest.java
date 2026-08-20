@@ -1,8 +1,10 @@
 package com.azhost.service;
 
+import com.azhost.build.BuildLogStreamer;
 import com.azhost.build.BuildStatus;
 import com.azhost.build.executor.BuildExecutor;
 import com.azhost.build.executor.BuildResult;
+import com.azhost.build.workspace.BuildWorkspaceManager;
 import com.azhost.config.AzHostBuildProperties;
 import com.azhost.deployment.DeploymentStatus;
 import com.azhost.dto.CreateDeploymentRequest;
@@ -14,26 +16,26 @@ import com.azhost.repository.ProjectRepository;
 import com.azhost.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
 
 @SpringBootTest
 @ActiveProfiles("test")
+@Import(ProductionHardeningConcurrencyIntegrationTest.TestConfig.class)
 public class ProductionHardeningConcurrencyIntegrationTest {
 
     @Autowired
@@ -60,8 +62,8 @@ public class ProductionHardeningConcurrencyIntegrationTest {
     @Autowired
     private AzHostBuildProperties buildProperties;
 
-    @MockBean
-    private BuildExecutor buildExecutor;
+    @Autowired
+    private BuildWorkspaceManager buildWorkspaceManager;
 
     @Autowired
     private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
@@ -71,8 +73,61 @@ public class ProductionHardeningConcurrencyIntegrationTest {
     private Project projectB;
     private Project projectC;
 
+    @TestConfiguration
+    public static class TestConfig {
+        @Bean
+        @Primary
+        public BuildExecutor testBuildExecutor() {
+            return new TestBuildExecutor();
+        }
+    }
+
+    public static class TestBuildExecutor implements BuildExecutor {
+        public static CountDownLatch startLatch = new CountDownLatch(1);
+        public static CountDownLatch activeBuildsLatch = new CountDownLatch(2);
+        public static final AtomicInteger activeBuildsCount = new AtomicInteger(0);
+        public static final AtomicInteger maxObservedConcurrency = new AtomicInteger(0);
+        public static final List<String> executionOrder = Collections.synchronizedList(new ArrayList<>());
+        public static boolean useLatch = false;
+
+        @Override
+        public boolean isDockerAvailable() {
+            return false;
+        }
+
+        @Override
+        public BuildResult executeBuild(
+                UUID buildId,
+                Path workspacePath,
+                ProjectAnalysisEntity analysis,
+                BuildLogStreamer logStreamer
+        ) {
+            if (useLatch) {
+                executionOrder.add(analysis.getProject().getName() + "-" + buildId);
+                int current = activeBuildsCount.incrementAndGet();
+                synchronized (maxObservedConcurrency) {
+                    if (current > maxObservedConcurrency.get()) {
+                        maxObservedConcurrency.set(current);
+                    }
+                }
+                activeBuildsLatch.countDown();
+                try {
+                    startLatch.await();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                activeBuildsCount.decrementAndGet();
+            }
+            return BuildResult.success(100L, "artifact-" + buildId, "/tmp/art");
+        }
+
+        @Override
+        public void cancelBuild(UUID buildId) {
+        }
+    }
+
     @BeforeEach
-    public void setUp() {
+    public void setUp() throws Exception {
         buildManager.reset();
         deploymentRepository.deleteAll();
         buildRepository.deleteAll();
@@ -96,6 +151,21 @@ public class ProductionHardeningConcurrencyIntegrationTest {
         jdbcTemplate.update(sql, projectA.getId(), "STATIC", "HIGH", "JavaScript", "NPM", "HIGH", "HIGH", false, "dist", "20", "npm run build", new java.sql.Timestamp(System.currentTimeMillis()));
         jdbcTemplate.update(sql, projectB.getId(), "STATIC", "HIGH", "JavaScript", "NPM", "HIGH", "HIGH", false, "dist", "20", "npm run build", new java.sql.Timestamp(System.currentTimeMillis()));
         jdbcTemplate.update(sql, projectC.getId(), "STATIC", "HIGH", "JavaScript", "NPM", "HIGH", "HIGH", false, "dist", "20", "npm run build", new java.sql.Timestamp(System.currentTimeMillis()));
+
+        // Write mock artifacts to disk so validation passes
+        Path artifactsRoot = buildWorkspaceManager.getArtifactsRoot();
+        if (!Files.exists(artifactsRoot)) {
+            Files.createDirectories(artifactsRoot);
+        }
+        Files.write(artifactsRoot.resolve("artifact-A.zip"), new byte[] {0x50, 0x4B, 0x05, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}); // valid empty zip bytes
+        Files.write(artifactsRoot.resolve("artifact-B.zip"), new byte[] {0x50, 0x4B, 0x05, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00});
+
+        TestBuildExecutor.startLatch = new CountDownLatch(1);
+        TestBuildExecutor.activeBuildsLatch = new CountDownLatch(2);
+        TestBuildExecutor.activeBuildsCount.set(0);
+        TestBuildExecutor.maxObservedConcurrency.set(0);
+        TestBuildExecutor.executionOrder.clear();
+        TestBuildExecutor.useLatch = false;
     }
 
     @Test
@@ -105,7 +175,7 @@ public class ProductionHardeningConcurrencyIntegrationTest {
         buildA.setStatus(BuildStatus.SUCCESS);
         buildA.setArtifactId("artifact-A");
         buildA = buildRepository.save(buildA);
-        
+
         CreateDeploymentRequest reqA = new CreateDeploymentRequest();
         reqA.setBuildId(buildA.getId());
         var depAResp = deploymentService.createDeployment(projectA.getId(), reqA, user.getEmail());
@@ -116,7 +186,7 @@ public class ProductionHardeningConcurrencyIntegrationTest {
         buildB.setStatus(BuildStatus.SUCCESS);
         buildB.setArtifactId("artifact-B");
         buildB = buildRepository.save(buildB);
-        
+
         CreateDeploymentRequest reqB = new CreateDeploymentRequest();
         reqB.setBuildId(buildB.getId());
         var depBResp = deploymentService.createDeployment(projectA.getId(), reqB, user.getEmail());
@@ -136,10 +206,10 @@ public class ProductionHardeningConcurrencyIntegrationTest {
         // 4. Deployment A completes later and tries to promote
         depA.setStatus(DeploymentStatus.SUCCESS);
         depA = deploymentRepository.save(depA);
-        
+
         final DeploymentEntity finalDepA = depA;
         final DeploymentEntity finalDepB = depB;
-        
+
         // Concurrent verification: attempt promotion concurrently from 2 threads
         ExecutorService executor = Executors.newFixedThreadPool(2);
         List<Callable<Void>> tasks = new ArrayList<>();
@@ -166,35 +236,7 @@ public class ProductionHardeningConcurrencyIntegrationTest {
         buildProperties.getBuild().setQueueCapacity(10);
         buildManager.init(); // reinitialize thread pool
 
-        CountDownLatch startLatch = new CountDownLatch(1);
-        CountDownLatch activeBuildsLatch = new CountDownLatch(2);
-        AtomicInteger activeBuildsCount = new AtomicInteger(0);
-        AtomicInteger maxObservedConcurrency = new AtomicInteger(0);
-
-        List<String> executionOrder = Collections.synchronizedList(new ArrayList<>());
-
-        Mockito.doAnswer(invocation -> {
-            UUID buildId = invocation.getArgument(0);
-            ProjectBuildEntity b = buildRepository.findById(buildId).orElse(null);
-            String name = (b != null && b.getProject() != null) ? b.getProject().getName() : "UnknownProject";
-            
-            executionOrder.add(name + "-" + buildId);
-            int current = activeBuildsCount.incrementAndGet();
-            
-            synchronized (maxObservedConcurrency) {
-                if (current > maxObservedConcurrency.get()) {
-                    maxObservedConcurrency.set(current);
-                }
-            }
-
-            activeBuildsLatch.countDown();
-            
-            // Block until startLatch is released
-            startLatch.await();
-            
-            activeBuildsCount.decrementAndGet();
-            return BuildResult.success(100L, "mock-artifact-" + buildId, "/tmp/art");
-        }).when(buildExecutor).executeBuild(any(), any(), any(), any());
+        TestBuildExecutor.useLatch = true;
 
         // Submit 5 builds:
         // B1 -> Project A
@@ -215,31 +257,31 @@ public class ProductionHardeningConcurrencyIntegrationTest {
         buildManager.submitBuildTask(b5, projectB, Path.of("/tmp/ws-5"));
 
         // Wait for first 2 concurrent builds to start
-        activeBuildsLatch.await(5, TimeUnit.SECONDS);
+        TestBuildExecutor.activeBuildsLatch.await(5, TimeUnit.SECONDS);
 
         // Verify that only 2 builds ran concurrently
-        assertThat(maxObservedConcurrency.get()).isEqualTo(2);
+        assertThat(TestBuildExecutor.maxObservedConcurrency.get()).isEqualTo(2);
 
         // Verify that Project A's b4 did NOT start because Project A's b1 is active (serialized per project)
         // Verify that Project B's b5 did NOT start because Project B's b2 is active
-        assertThat(executionOrder).hasSize(2);
-        assertThat(executionOrder.get(0)).startsWith("ProjectA");
-        assertThat(executionOrder.get(1)).startsWith("ProjectB");
+        assertThat(TestBuildExecutor.executionOrder).hasSize(2);
+        assertThat(TestBuildExecutor.executionOrder.get(0)).startsWith("ProjectA");
+        assertThat(TestBuildExecutor.executionOrder.get(1)).startsWith("ProjectB");
 
         // Release the first 2 builds
-        startLatch.countDown();
+        TestBuildExecutor.startLatch.countDown();
 
         // Wait a short moment for completion and processing of remainder
         Thread.sleep(1000);
 
         // Verify remaining builds execute sequentially and respect project serialization FIFO
-        assertThat(executionOrder).hasSize(5);
-        
+        assertThat(TestBuildExecutor.executionOrder).hasSize(5);
+
         // Assert B4 (Project A) is after B1 (Project A)
         int idxB1 = -1, idxB4 = -1;
-        for (int i = 0; i < executionOrder.size(); i++) {
-            if (executionOrder.get(i).contains(b1.getId().toString())) idxB1 = i;
-            if (executionOrder.get(i).contains(b4.getId().toString())) idxB4 = i;
+        for (int i = 0; i < TestBuildExecutor.executionOrder.size(); i++) {
+            if (TestBuildExecutor.executionOrder.get(i).contains(b1.getId().toString())) idxB1 = i;
+            if (TestBuildExecutor.executionOrder.get(i).contains(b4.getId().toString())) idxB4 = i;
         }
         assertThat(idxB1).isLessThan(idxB4);
     }
