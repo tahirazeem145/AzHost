@@ -1,16 +1,13 @@
 package com.azhost.service;
 
-import com.azhost.build.workspace.BuildWorkspaceManager;
-import com.azhost.deployment.DeploymentManager;
 import com.azhost.deployment.DeploymentStatus;
 import com.azhost.deployment.DeploymentValidator;
+import com.azhost.deployment.DeploymentManager;
+import com.azhost.build.executor.BuildWorkspaceManager;
 import com.azhost.dto.CreateDeploymentRequest;
 import com.azhost.dto.DeploymentListResponseDto;
 import com.azhost.dto.DeploymentResponseDto;
-import com.azhost.entity.DeploymentEntity;
-import com.azhost.entity.Project;
-import com.azhost.entity.ProjectBuildEntity;
-import com.azhost.entity.User;
+import com.azhost.entity.*;
 import com.azhost.exception.BuildNotFoundException;
 import com.azhost.exception.DeploymentNotFoundException;
 import com.azhost.exception.ProjectNotFoundException;
@@ -21,6 +18,7 @@ import com.azhost.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,7 +28,6 @@ import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
-
 
 @Service
 public class DeploymentService {
@@ -45,6 +42,7 @@ public class DeploymentService {
     private final DeploymentValidator deploymentValidator;
     private final DeploymentManager deploymentManager;
     private final AuditLogService auditLogService;
+    private final ProjectAuthorizationService projectAuthorizationService;
 
     @Value("${azhost.server.base-url:http://localhost:8080}")
     private String serverBaseUrl;
@@ -57,7 +55,8 @@ public class DeploymentService {
             BuildWorkspaceManager buildWorkspaceManager,
             DeploymentValidator deploymentValidator,
             DeploymentManager deploymentManager,
-            AuditLogService auditLogService
+            AuditLogService auditLogService,
+            ProjectAuthorizationService projectAuthorizationService
     ) {
         this.projectRepository = projectRepository;
         this.projectBuildRepository = projectBuildRepository;
@@ -67,6 +66,7 @@ public class DeploymentService {
         this.deploymentValidator = deploymentValidator;
         this.deploymentManager = deploymentManager;
         this.auditLogService = auditLogService;
+        this.projectAuthorizationService = projectAuthorizationService;
     }
 
     @Transactional
@@ -75,8 +75,9 @@ public class DeploymentService {
         Project project = projectRepository.findAndLockById(projectId)
                 .orElseThrow(() -> new ProjectNotFoundException("Project not found with ID: " + projectId));
 
-        if (!project.getUser().getId().equals(user.getId())) {
-            throw new ProjectNotFoundException("Project not found with ID: " + projectId);
+        ProjectRole userRole = projectAuthorizationService.getRoleForUser(project, userEmail);
+        if (userRole == null || !userRole.satisfies(ProjectRole.MEMBER)) {
+            throw new AccessDeniedException("Access denied: minimum role MEMBER required");
         }
 
         ProjectBuildEntity build = projectBuildRepository.findByIdAndProjectId(request.getBuildId(), projectId)
@@ -114,14 +115,12 @@ public class DeploymentService {
     }
 
     @Transactional(readOnly = true)
-    public DeploymentListResponseDto getDeploymentsForProject(UUID projectId, String userEmail) {
-        User user = getUser(userEmail);
-        Project project = projectRepository.findByIdAndUserId(projectId, user.getId())
-                .orElseThrow(() -> new ProjectNotFoundException("Project not found with ID: " + projectId));
-
+    public DeploymentListResponseDto getDeploymentsForProject(UUID projectId, String userEmail, int page, int size) {
+        Project project = projectAuthorizationService.verifyAccess(projectId, userEmail, ProjectRole.VIEWER);
         UUID activeId = project.getActiveDeployment() != null ? project.getActiveDeployment().getId() : null;
 
-        List<DeploymentResponseDto> list = deploymentRepository.findByProjectIdOrderByCreatedAtDesc(project.getId()).stream()
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
+        List<DeploymentResponseDto> list = deploymentRepository.findByProjectIdOrderByCreatedAtDesc(project.getId(), pageable).getContent().stream()
                 .map(entity -> new DeploymentResponseDto(entity, entity.getId().equals(activeId)))
                 .collect(Collectors.toList());
 
@@ -130,11 +129,9 @@ public class DeploymentService {
 
     @Transactional(readOnly = true)
     public DeploymentResponseDto getDeploymentById(UUID projectId, UUID deploymentId, String userEmail) {
-        User user = getUser(userEmail);
-        Project project = projectRepository.findByIdAndUserId(projectId, user.getId())
-                .orElseThrow(() -> new ProjectNotFoundException("Project not found with ID: " + projectId));
+        Project project = projectAuthorizationService.verifyAccess(projectId, userEmail, ProjectRole.VIEWER);
 
-        DeploymentEntity entity = deploymentRepository.findByIdAndProjectId(deploymentId, projectId)
+        DeploymentEntity entity = deploymentRepository.findByIdAndProjectId(deploymentId, project.getId())
                 .orElseThrow(() -> new DeploymentNotFoundException("Deployment not found with ID: " + deploymentId));
 
         boolean isActive = project.getActiveDeployment() != null && project.getActiveDeployment().getId().equals(entity.getId());
@@ -144,17 +141,16 @@ public class DeploymentService {
     @Transactional
     public DeploymentResponseDto cancelDeployment(UUID projectId, UUID deploymentId, String userEmail) {
         User user = getUser(userEmail);
-        Project project = projectRepository.findByIdAndUserId(projectId, user.getId())
-                .orElseThrow(() -> new ProjectNotFoundException("Project not found with ID: " + projectId));
+        Project project = projectAuthorizationService.verifyAccess(projectId, userEmail, ProjectRole.MEMBER);
 
-        DeploymentEntity entity = deploymentRepository.findByIdAndProjectId(deploymentId, projectId)
+        DeploymentEntity entity = deploymentRepository.findByIdAndProjectId(deploymentId, project.getId())
                 .orElseThrow(() -> new DeploymentNotFoundException("Deployment not found with ID: " + deploymentId));
 
         if (!entity.getStatus().isTerminal()) {
             entity.setStatus(DeploymentStatus.CANCELLED);
             entity.setFailedAt(ZonedDateTime.now());
             deploymentRepository.save(entity);
-            deploymentManager.unregisterActiveDeployment(projectId);
+            deploymentManager.unregisterActiveDeployment(project.getId());
             auditLogService.log(user, project, "DEPLOYMENT_CANCELLED", "Deployment", deploymentId.toString(), "SUCCESS", "Cancelled deployment");
         }
 
@@ -165,10 +161,9 @@ public class DeploymentService {
     @Transactional
     public DeploymentResponseDto rollbackToDeployment(UUID projectId, UUID deploymentId, String userEmail) {
         User user = getUser(userEmail);
-        Project project = projectRepository.findByIdAndUserId(projectId, user.getId())
-                .orElseThrow(() -> new ProjectNotFoundException("Project not found with ID: " + projectId));
+        Project project = projectAuthorizationService.verifyAccess(projectId, userEmail, ProjectRole.MEMBER);
 
-        DeploymentEntity entity = deploymentRepository.findByIdAndProjectId(deploymentId, projectId)
+        DeploymentEntity entity = deploymentRepository.findByIdAndProjectId(deploymentId, project.getId())
                 .orElseThrow(() -> new DeploymentNotFoundException("Deployment not found with ID: " + deploymentId));
 
         if (entity.getStatus() != DeploymentStatus.SUCCESS) {

@@ -12,6 +12,7 @@ import java.util.UUID;
 public interface ProjectBuildRepository extends JpaRepository<ProjectBuildEntity, UUID> {
 
     List<ProjectBuildEntity> findByProjectIdOrderByCreatedAtDesc(UUID projectId);
+    org.springframework.data.domain.Page<ProjectBuildEntity> findByProjectIdOrderByCreatedAtDesc(UUID projectId, org.springframework.data.domain.Pageable pageable);
 
     Optional<ProjectBuildEntity> findByIdAndProjectId(UUID id, UUID projectId);
 }

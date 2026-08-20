@@ -4,8 +4,7 @@ import com.azhost.dto.CreateProjectRequest;
 import com.azhost.dto.ProjectListResponseDto;
 import com.azhost.dto.ProjectResponseDto;
 import com.azhost.dto.UpdateProjectRequest;
-import com.azhost.entity.Project;
-import com.azhost.entity.User;
+import com.azhost.entity.*;
 import com.azhost.exception.ProjectNotFoundException;
 import com.azhost.repository.ProjectRepository;
 import com.azhost.repository.UserRepository;
@@ -27,12 +26,20 @@ public class ProjectService {
     private final UserRepository userRepository;
     private final SlugService slugService;
     private final AuditLogService auditLogService;
+    private final ProjectAuthorizationService projectAuthorizationService;
 
-    public ProjectService(ProjectRepository projectRepository, UserRepository userRepository, SlugService slugService, AuditLogService auditLogService) {
+    public ProjectService(
+            ProjectRepository projectRepository,
+            UserRepository userRepository,
+            SlugService slugService,
+            AuditLogService auditLogService,
+            ProjectAuthorizationService projectAuthorizationService
+    ) {
         this.projectRepository = projectRepository;
         this.userRepository = userRepository;
         this.slugService = slugService;
         this.auditLogService = auditLogService;
+        this.projectAuthorizationService = projectAuthorizationService;
     }
 
     @Transactional
@@ -58,41 +65,38 @@ public class ProjectService {
     }
 
     @Transactional(readOnly = true)
-    public ProjectListResponseDto getProjects(String userEmail, String search) {
+    public ProjectListResponseDto getProjects(String userEmail, String search, int page, int size) {
         User user = getUser(userEmail);
-        List<Project> projects;
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
+        org.springframework.data.domain.Page<Project> projectPage;
 
         if (search != null && !search.isBlank()) {
-            projects = projectRepository.searchByUserIdAndQuery(user.getId(), search.trim());
+            projectPage = projectRepository.searchAccessibleProjects(user.getId(), search.trim(), pageable);
         } else {
-            projects = projectRepository.findAllByUserIdOrderByCreatedAtDesc(user.getId());
+            projectPage = projectRepository.findAllAccessibleProjects(user.getId(), pageable);
         }
 
-        List<ProjectResponseDto> dtos = projects.stream()
+        List<ProjectResponseDto> dtos = projectPage.getContent().stream()
                 .map(ProjectResponseDto::new)
                 .collect(Collectors.toList());
 
-        long totalCount = projectRepository.countByUserId(user.getId());
-        return new ProjectListResponseDto(dtos, totalCount);
+        return new ProjectListResponseDto(dtos, projectPage.getTotalElements());
     }
 
     @Transactional(readOnly = true)
     public ProjectResponseDto getProjectById(UUID id, String userEmail) {
-        User user = getUser(userEmail);
-        Project project = projectRepository.findByIdAndUserId(id, user.getId())
-                .orElseThrow(() -> new ProjectNotFoundException("Project not found with ID: " + id));
+        Project project = projectAuthorizationService.verifyAccess(id, userEmail, ProjectRole.VIEWER);
         return new ProjectResponseDto(project);
     }
 
     @Transactional
     public ProjectResponseDto updateProject(UUID id, UpdateProjectRequest request, String userEmail) {
         User user = getUser(userEmail);
-        Project project = projectRepository.findByIdAndUserId(id, user.getId())
-                .orElseThrow(() -> new ProjectNotFoundException("Project not found with ID: " + id));
+        Project project = projectAuthorizationService.verifyAccess(id, userEmail, ProjectRole.OWNER);
 
         // If name changed, generate new unique slug
         if (!project.getName().equalsIgnoreCase(request.getName().trim())) {
-            String newSlug = slugService.generateUniqueSlug(user.getId(), request.getName());
+            String newSlug = slugService.generateUniqueSlug(project.getUser().getId(), request.getName());
             project.setSlug(newSlug);
         }
 
@@ -115,14 +119,12 @@ public class ProjectService {
         auditLogService.log(user, updatedProject, "PROJECT_UPDATED", "Project", updatedProject.getId().toString(), "SUCCESS", "Updated project " + updatedProject.getName());
         logger.info("Updated project '{}' (ID: {}) for user '{}'", updatedProject.getName(), id, userEmail);
         return new ProjectResponseDto(updatedProject);
-
     }
 
     @Transactional
     public void deleteProject(UUID id, String userEmail) {
         User user = getUser(userEmail);
-        Project project = projectRepository.findByIdAndUserId(id, user.getId())
-                .orElseThrow(() -> new ProjectNotFoundException("Project not found with ID: " + id));
+        Project project = projectAuthorizationService.verifyAccess(id, userEmail, ProjectRole.OWNER);
         projectRepository.delete(project);
         auditLogService.log(user, null, "PROJECT_DELETED", "Project", id.toString(), "SUCCESS", "Deleted project " + project.getName());
         logger.info("Deleted project '{}' (ID: {}) for user '{}'", project.getName(), id, userEmail);
@@ -131,7 +133,8 @@ public class ProjectService {
     @Transactional(readOnly = true)
     public long getProjectCount(String userEmail) {
         User user = getUser(userEmail);
-        return projectRepository.countByUserId(user.getId());
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 1);
+        return projectRepository.findAllAccessibleProjects(user.getId(), pageable).getTotalElements();
     }
 
     private User getUser(String userEmail) {

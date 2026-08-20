@@ -13,6 +13,7 @@ import java.util.UUID;
 public interface DeploymentRepository extends JpaRepository<DeploymentEntity, UUID> {
 
     List<DeploymentEntity> findByProjectIdOrderByCreatedAtDesc(UUID projectId);
+    org.springframework.data.domain.Page<DeploymentEntity> findByProjectIdOrderByCreatedAtDesc(UUID projectId, org.springframework.data.domain.Pageable pageable);
 
     Optional<DeploymentEntity> findByIdAndProjectId(UUID id, UUID projectId);
 

@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.Principal;
 import java.util.Map;
 import java.util.UUID;
 
@@ -25,38 +26,54 @@ public class ProjectController {
     }
 
     @PostMapping
-    public ResponseEntity<ProjectResponseDto> createProject(@Valid @RequestBody CreateProjectRequest request) {
-        ProjectResponseDto response = projectService.createProject(request, DevUserInitializer.DEV_USER_EMAIL);
+    public ResponseEntity<ProjectResponseDto> createProject(@Valid @RequestBody CreateProjectRequest request, Principal principal) {
+        String email = principal != null ? principal.getName() : DevUserInitializer.DEV_USER_EMAIL;
+        ProjectResponseDto response = projectService.createProject(request, email);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
     @GetMapping
-    public ResponseEntity<ProjectListResponseDto> getProjects(@RequestParam(required = false) String search) {
-        ProjectListResponseDto response = projectService.getProjects(DevUserInitializer.DEV_USER_EMAIL, search);
+    public ResponseEntity<ProjectListResponseDto> getProjects(
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            Principal principal
+    ) {
+        String email = principal != null ? principal.getName() : DevUserInitializer.DEV_USER_EMAIL;
+        int limitSize = Math.min(size, 100);
+        ProjectListResponseDto response = projectService.getProjects(email, search, page, limitSize);
         return ResponseEntity.ok(response);
     }
 
     @GetMapping("/count")
-    public ResponseEntity<Map<String, Long>> getProjectCount() {
-        long count = projectService.getProjectCount(DevUserInitializer.DEV_USER_EMAIL);
+    public ResponseEntity<Map<String, Long>> getProjectCount(Principal principal) {
+        String email = principal != null ? principal.getName() : DevUserInitializer.DEV_USER_EMAIL;
+        long count = projectService.getProjectCount(email);
         return ResponseEntity.ok(Map.of("count", count));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ProjectResponseDto> getProjectById(@PathVariable UUID id) {
-        ProjectResponseDto response = projectService.getProjectById(id, DevUserInitializer.DEV_USER_EMAIL);
+    public ResponseEntity<ProjectResponseDto> getProjectById(@PathVariable UUID id, Principal principal) {
+        String email = principal != null ? principal.getName() : DevUserInitializer.DEV_USER_EMAIL;
+        ProjectResponseDto response = projectService.getProjectById(id, email);
         return ResponseEntity.ok(response);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ProjectResponseDto> updateProject(@PathVariable UUID id, @Valid @RequestBody UpdateProjectRequest request) {
-        ProjectResponseDto response = projectService.updateProject(id, request, DevUserInitializer.DEV_USER_EMAIL);
+    public ResponseEntity<ProjectResponseDto> updateProject(
+            @PathVariable UUID id,
+            @Valid @RequestBody UpdateProjectRequest request,
+            Principal principal
+    ) {
+        String email = principal != null ? principal.getName() : DevUserInitializer.DEV_USER_EMAIL;
+        ProjectResponseDto response = projectService.updateProject(id, request, email);
         return ResponseEntity.ok(response);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteProject(@PathVariable UUID id) {
-        projectService.deleteProject(id, DevUserInitializer.DEV_USER_EMAIL);
+    public ResponseEntity<Void> deleteProject(@PathVariable UUID id, Principal principal) {
+        String email = principal != null ? principal.getName() : DevUserInitializer.DEV_USER_EMAIL;
+        projectService.deleteProject(id, email);
         return ResponseEntity.noContent().build();
     }
 }

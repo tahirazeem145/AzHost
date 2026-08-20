@@ -2,13 +2,10 @@ package com.azhost.service;
 
 import com.azhost.build.BuildLogStreamer;
 import com.azhost.build.BuildManager;
-import com.azhost.build.workspace.BuildWorkspaceManager;
+import com.azhost.build.executor.BuildWorkspaceManager;
 import com.azhost.dto.BuildLogResponseDto;
 import com.azhost.dto.BuildResponseDto;
-import com.azhost.entity.Project;
-import com.azhost.entity.ProjectAnalysisEntity;
-import com.azhost.entity.ProjectBuildEntity;
-import com.azhost.entity.User;
+import com.azhost.entity.*;
 import com.azhost.exception.BuildNotFoundException;
 import com.azhost.exception.ProjectNotFoundException;
 import com.azhost.exception.ProjectSourceNotAvailableException;
@@ -42,6 +39,7 @@ public class BuildService {
     private final SourceAcquisitionService sourceAcquisitionService;
     private final BuildWorkspaceManager workspaceManager;
     private final BuildManager buildManager;
+    private final ProjectAuthorizationService projectAuthorizationService;
 
     public BuildService(
             ProjectRepository projectRepository,
@@ -51,7 +49,8 @@ public class BuildService {
             ProjectAnalysisService projectAnalysisService,
             SourceAcquisitionService sourceAcquisitionService,
             BuildWorkspaceManager workspaceManager,
-            BuildManager buildManager
+            BuildManager buildManager,
+            ProjectAuthorizationService projectAuthorizationService
     ) {
         this.projectRepository = projectRepository;
         this.projectAnalysisRepository = projectAnalysisRepository;
@@ -61,13 +60,12 @@ public class BuildService {
         this.sourceAcquisitionService = sourceAcquisitionService;
         this.workspaceManager = workspaceManager;
         this.buildManager = buildManager;
+        this.projectAuthorizationService = projectAuthorizationService;
     }
 
     @Transactional
     public BuildResponseDto startBuild(UUID projectId, String userEmail) {
-        User user = getUser(userEmail);
-        Project project = projectRepository.findByIdAndUserId(projectId, user.getId())
-                .orElseThrow(() -> new ProjectNotFoundException("Project not found with ID: " + projectId));
+        Project project = projectAuthorizationService.verifyAccess(projectId, userEmail, ProjectRole.MEMBER);
 
         // Retrieve or execute metadata analysis
         ProjectAnalysisEntity analysis = projectAnalysisRepository.findByProjectId(projectId)
@@ -117,23 +115,19 @@ public class BuildService {
     }
 
     @Transactional(readOnly = true)
-    public List<BuildResponseDto> getBuildsForProject(UUID projectId, String userEmail) {
-        User user = getUser(userEmail);
-        Project project = projectRepository.findByIdAndUserId(projectId, user.getId())
-                .orElseThrow(() -> new ProjectNotFoundException("Project not found with ID: " + projectId));
-
-        return projectBuildRepository.findByProjectIdOrderByCreatedAtDesc(project.getId()).stream()
+    public List<BuildResponseDto> getBuildsForProject(UUID projectId, String userEmail, int page, int size) {
+        Project project = projectAuthorizationService.verifyAccess(projectId, userEmail, ProjectRole.VIEWER);
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
+        return projectBuildRepository.findByProjectIdOrderByCreatedAtDesc(project.getId(), pageable).getContent().stream()
                 .map(BuildResponseDto::new)
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public BuildResponseDto getBuildById(UUID projectId, UUID buildId, String userEmail) {
-        User user = getUser(userEmail);
-        projectRepository.findByIdAndUserId(projectId, user.getId())
-                .orElseThrow(() -> new ProjectNotFoundException("Project not found with ID: " + projectId));
+        Project project = projectAuthorizationService.verifyAccess(projectId, userEmail, ProjectRole.VIEWER);
 
-        ProjectBuildEntity entity = projectBuildRepository.findByIdAndProjectId(buildId, projectId)
+        ProjectBuildEntity entity = projectBuildRepository.findByIdAndProjectId(buildId, project.getId())
                 .orElseThrow(() -> new BuildNotFoundException("Build not found with ID: " + buildId));
 
         return new BuildResponseDto(entity);
@@ -141,11 +135,9 @@ public class BuildService {
 
     @Transactional(readOnly = true)
     public BuildLogResponseDto getBuildLogs(UUID projectId, UUID buildId, String userEmail, int page, int size) {
-        User user = getUser(userEmail);
-        projectRepository.findByIdAndUserId(projectId, user.getId())
-                .orElseThrow(() -> new ProjectNotFoundException("Project not found with ID: " + projectId));
+        Project project = projectAuthorizationService.verifyAccess(projectId, userEmail, ProjectRole.VIEWER);
 
-        ProjectBuildEntity entity = projectBuildRepository.findByIdAndProjectId(buildId, projectId)
+        ProjectBuildEntity entity = projectBuildRepository.findByIdAndProjectId(buildId, project.getId())
                 .orElseThrow(() -> new BuildNotFoundException("Build not found with ID: " + buildId));
 
         int pageSize = Math.min(size, 500);
@@ -166,11 +158,9 @@ public class BuildService {
 
     @Transactional
     public BuildResponseDto cancelBuild(UUID projectId, UUID buildId, String userEmail) {
-        User user = getUser(userEmail);
-        projectRepository.findByIdAndUserId(projectId, user.getId())
-                .orElseThrow(() -> new ProjectNotFoundException("Project not found with ID: " + projectId));
+        Project project = projectAuthorizationService.verifyAccess(projectId, userEmail, ProjectRole.MEMBER);
 
-        ProjectBuildEntity entity = projectBuildRepository.findByIdAndProjectId(buildId, projectId)
+        ProjectBuildEntity entity = projectBuildRepository.findByIdAndProjectId(buildId, project.getId())
                 .orElseThrow(() -> new BuildNotFoundException("Build not found with ID: " + buildId));
 
         if (!entity.getStatus().isTerminal()) {
