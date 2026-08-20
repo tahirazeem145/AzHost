@@ -253,7 +253,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Object> handleGlobalException(Exception ex, HttpServletRequest request) {
         logger.error("Unhandled exception processing request path: {}", request.getRequestURI(), ex);
         
-        List<String> activeProfiles = java.util.Arrays.asList(environment.getActiveProfiles());
+        java.util.List<String> activeProfiles = java.util.Arrays.asList(environment.getActiveProfiles());
         if (activeProfiles.contains("prod")) {
             String reqId = org.slf4j.MDC.get("requestId");
             java.util.Map<String, Object> error = java.util.Map.of(
