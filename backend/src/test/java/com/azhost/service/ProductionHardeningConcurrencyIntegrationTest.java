@@ -76,6 +76,7 @@ public class ProductionHardeningConcurrencyIntegrationTest {
         projectRepository.deleteAll();
         userRepository.deleteAll();
 
+        user = new User("test-concurrency@azhost.dev", "hash", "Concurrency User");
         user = userRepository.saveAndFlush(user);
 
         projectA = new Project(user, "ProjectA", "project-a", "desc", ProjectFramework.STATIC, ProjectSourceType.GITHUB, "http://github.com", "main");
