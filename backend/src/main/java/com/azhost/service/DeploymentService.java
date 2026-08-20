@@ -190,9 +190,11 @@ public class DeploymentService {
         if (project != null && deployment != null && deployment.getStatus() == DeploymentStatus.SUCCESS) {
             DeploymentEntity currentActive = project.getActiveDeployment();
             if (currentActive != null) {
-                if (deployment.getSequenceNumber() < currentActive.getSequenceNumber()) {
-                    logger.warn("Prevented stale deployment promotion: Candidate deployment '{}' (sequence: {}) is older than currently active deployment '{}' (sequence: {})",
-                            deployment.getId(), deployment.getSequenceNumber(), currentActive.getId(), currentActive.getSequenceNumber());
+                if (deployment.getSequenceNumber() < currentActive.getSequenceNumber() ||
+                    (deployment.getSequenceNumber() == currentActive.getSequenceNumber() && deployment.getCreatedAt().isBefore(currentActive.getCreatedAt()))) {
+                    logger.warn("Prevented stale deployment promotion: Candidate deployment '{}' (sequence: {}, created: {}) is older than currently active deployment '{}' (sequence: {}, created: {})",
+                            deployment.getId(), deployment.getSequenceNumber(), deployment.getCreatedAt(),
+                            currentActive.getId(), currentActive.getSequenceNumber(), currentActive.getCreatedAt());
                     return;
                 }
             }

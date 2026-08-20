@@ -48,6 +48,9 @@ public class ProductionHardeningConcurrencyIntegrationTest {
     private DeploymentRepository deploymentRepository;
 
     @Autowired
+    private com.azhost.repository.ProjectAnalysisRepository analysisRepository;
+
+    @Autowired
     private DeploymentService deploymentService;
 
     @Autowired
@@ -68,6 +71,7 @@ public class ProductionHardeningConcurrencyIntegrationTest {
     public void setUp() {
         deploymentRepository.deleteAll();
         buildRepository.deleteAll();
+        analysisRepository.deleteAll();
         projectRepository.deleteAll();
         userRepository.deleteAll();
 
@@ -82,12 +86,22 @@ public class ProductionHardeningConcurrencyIntegrationTest {
 
         projectC = new Project(user, "ProjectC", "project-c", "desc", ProjectFramework.STATIC, ProjectSourceType.GITHUB, "http://github.com", "main");
         projectC = projectRepository.save(projectC);
+
+        ProjectAnalysisEntity analysisA = new ProjectAnalysisEntity(projectA, ProjectFramework.STATIC, "NPM", "20", "npm run build", "dist");
+        analysisRepository.save(analysisA);
+
+        ProjectAnalysisEntity analysisB = new ProjectAnalysisEntity(projectB, ProjectFramework.STATIC, "NPM", "20", "npm run build", "dist");
+        analysisRepository.save(analysisB);
+
+        ProjectAnalysisEntity analysisC = new ProjectAnalysisEntity(projectC, ProjectFramework.STATIC, "NPM", "20", "npm run build", "dist");
+        analysisRepository.save(analysisC);
     }
 
     @Test
     public void staleDeploymentRaceTest() throws Exception {
         // 1. Create build A and deployment A
         ProjectBuildEntity buildA = new ProjectBuildEntity(projectA, ProjectFramework.STATIC, "NPM", "20", "npm run build", "dist", "ws-A");
+        buildA.setStatus(BuildStatus.SUCCESS);
         buildA = buildRepository.save(buildA);
         
         CreateDeploymentRequest reqA = new CreateDeploymentRequest();
@@ -97,6 +111,7 @@ public class ProductionHardeningConcurrencyIntegrationTest {
 
         // 2. Create build B and deployment B
         ProjectBuildEntity buildB = new ProjectBuildEntity(projectA, ProjectFramework.STATIC, "NPM", "20", "npm run build", "dist", "ws-B");
+        buildB.setStatus(BuildStatus.SUCCESS);
         buildB = buildRepository.save(buildB);
         
         CreateDeploymentRequest reqB = new CreateDeploymentRequest();
