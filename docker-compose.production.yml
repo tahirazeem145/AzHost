@@ -1,0 +1,69 @@
+# AZHost Production Compose Stack
+#
+# SECURITY WARNING:
+# This compose configuration mounts the host's Docker socket (/var/run/docker.sock).
+# mounting the Docker socket inside a container grants that container full root-equivalent
+# privileges on the host system. If the backend is compromised, an attacker can spin up
+# arbitrary containers, mount host root directories, and achieve host root takeover.
+#
+# Mitigations implemented:
+# 1. The container runs as a non-root user ('appuser') by default.
+# 2. To build/execute project containers, 'appuser' must have permissions to talk to the socket.
+#    In production, prefer running Docker with Rootless mode, or restrict permissions on the socket
+#    via a TCP proxy (like Tecia/docker-socket-proxy) that filters incoming API commands (e.g. blocking
+#    host directory mounts or container deletion of non-azhost containers).
+#
+
+version: '3.8'
+
+services:
+  azhost-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: azhost/backend:latest
+    container_name: azhost-backend
+    restart: always
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      # Production variables must be provided in the environment/host (.env file)
+      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_USERNAME=${DATABASE_USERNAME}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
+      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
+      - GITHUB_WEBHOOK_SECRET=${GITHUB_WEBHOOK_SECRET}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
+      - AZHOST_PUBLIC_URL=${AZHOST_PUBLIC_URL}
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    ports:
+      - "8080:8080"
+    volumes:
+      # Expose host docker socket to compile and run isolated builds (DooD - Docker-out-of-Docker)
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Persistent workspaces and static site artifact hosting directories
+      - azhost_workspaces:/app/workspaces
+      - azhost_artifacts:/app/artifacts
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4096M
+        reservations:
+          cpus: '0.5'
+          memory: 1024M
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  azhost_workspaces:
+    driver: local
+  azhost_artifacts:
+    driver: local

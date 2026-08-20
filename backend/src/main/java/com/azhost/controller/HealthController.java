@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Map;
 
 @RestController
@@ -46,16 +47,46 @@ public class HealthController {
             // 1. Check database connectivity
             jdbcTemplate.execute("SELECT 1");
 
-            // 2. Check build workspace directories
-            if (!Files.exists(workspaceManager.getWorkspacesRoot())) {
+            // 2. Check build workspace directories are present and writable
+            Path workspaceRoot = workspaceManager.getWorkspacesRoot();
+            if (!Files.exists(workspaceRoot)) {
+                try {
+                    Files.createDirectories(workspaceRoot);
+                } catch (Exception e) {
+                    return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                            .body(Map.of("status", "DOWN", "error", "Workspace root directory could not be created"));
+                }
+            }
+            if (!Files.isWritable(workspaceRoot)) {
                 return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                        .body(Map.of("status", "DOWN", "error", "Workspace root directory unavailable"));
+                        .body(Map.of("status", "DOWN", "error", "Workspace root directory is not writable"));
+            }
+
+            // 3. Check artifacts directory is present and writable
+            Path artifactsRoot = workspaceManager.getArtifactsRoot();
+            if (!Files.exists(artifactsRoot)) {
+                try {
+                    Files.createDirectories(artifactsRoot);
+                } catch (Exception e) {
+                    return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                            .body(Map.of("status", "DOWN", "error", "Artifacts root directory could not be created"));
+                }
+            }
+            if (!Files.isWritable(artifactsRoot)) {
+                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                        .body(Map.of("status", "DOWN", "error", "Artifacts root directory is not writable"));
+            }
+
+            // 4. Check Docker daemon availability
+            if (!buildExecutor.isDockerAvailable()) {
+                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                        .body(Map.of("status", "DOWN", "error", "Docker daemon is unavailable"));
             }
 
             return ResponseEntity.ok(Map.of("status", "UP"));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                    .body(Map.of("status", "DOWN", "error", e.getMessage()));
+                    .body(Map.of("status", "DOWN", "error", "Critical dependency failure"));
         }
     }
 }

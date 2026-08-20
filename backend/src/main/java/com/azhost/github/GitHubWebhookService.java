@@ -45,19 +45,22 @@ public class GitHubWebhookService {
     private final ProjectRepository projectRepository;
     private final GitHubWebhookDeliveryRepository deliveryRepository;
     private final GitHubBuildDeployService buildDeployService;
+    private final com.azhost.service.MetricsService metricsService;
 
     public GitHubWebhookService(
             GitHubWebhookSignatureVerifier signatureVerifier,
             GitHubTokenEncryptor tokenEncryptor,
             ProjectRepository projectRepository,
             GitHubWebhookDeliveryRepository deliveryRepository,
-            GitHubBuildDeployService buildDeployService
+            GitHubBuildDeployService buildDeployService,
+            com.azhost.service.MetricsService metricsService
     ) {
         this.signatureVerifier = signatureVerifier;
         this.tokenEncryptor = tokenEncryptor;
         this.projectRepository = projectRepository;
         this.deliveryRepository = deliveryRepository;
         this.buildDeployService = buildDeployService;
+        this.metricsService = metricsService;
     }
 
     /**
@@ -146,6 +149,7 @@ public class GitHubWebhookService {
                 logger.info("[Webhook] Duplicate delivery {} — already processed, skipping", deliveryId);
                 recordDelivery(project, deliveryId, EVENT_PUSH, afterCommitSha, pushedBranch,
                         GitHubWebhookDeliveryEntity.DeliveryStatus.SKIPPED, "Duplicate delivery");
+                metricsService.incrementWebhooksDuplicate();
                 return;
             }
 
@@ -198,10 +202,12 @@ public class GitHubWebhookService {
             } catch (Exception e) {
                 logger.error("[Webhook] Pipeline failed for delivery {}: {}", deliveryId, e.getMessage(), e);
                 completeDelivery(delivery, GitHubWebhookDeliveryEntity.DeliveryStatus.FAILED, e.getMessage());
+                metricsService.incrementWebhooksFailed();
             }
 
         } catch (Exception e) {
             logger.error("[Webhook] Unexpected error processing push event {}: {}", deliveryId, e.getMessage(), e);
+            metricsService.incrementWebhooksFailed();
         }
     }
 

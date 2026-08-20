@@ -44,16 +44,19 @@ public class GitHubWebhookController {
 
     private final GitHubWebhookService webhookService;
     private final ObjectMapper objectMapper;
+    private final com.azhost.service.MetricsService metricsService;
 
     @Value("${azhost.github.webhook-secret:}")
     private String globalWebhookSecret;
 
     public GitHubWebhookController(
             GitHubWebhookService webhookService,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            com.azhost.service.MetricsService metricsService
     ) {
         this.webhookService = webhookService;
         this.objectMapper = objectMapper;
+        this.metricsService = metricsService;
     }
 
     /**
@@ -71,10 +74,12 @@ public class GitHubWebhookController {
     ) {
         String safeDeliveryId = deliveryId != null ? deliveryId : "unknown";
         logger.info("[Webhook] Received GitHub event: type={} delivery={}", eventType, safeDeliveryId);
+        metricsService.incrementWebhooksReceived();
 
         // Step 1: Validate signature is present
         if (signatureHeader == null || signatureHeader.isBlank()) {
             logger.warn("[Webhook] Rejected: missing X-Hub-Signature-256 header (delivery={})", safeDeliveryId);
+            metricsService.incrementWebhooksRejected();
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("error", "Missing webhook signature"));
         }
@@ -132,6 +137,7 @@ public class GitHubWebhookController {
             if (!signatureValid) {
                 logger.warn("[Webhook] Rejected: invalid signature and no matching project (repo={}, delivery={})",
                         repositoryId, safeDeliveryId);
+                metricsService.incrementWebhooksRejected();
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(Map.of("error", "Invalid webhook signature"));
             }
@@ -144,6 +150,7 @@ public class GitHubWebhookController {
         if (!signatureValid) {
             logger.warn("[Webhook] Rejected: invalid signature for project '{}' (delivery={})",
                     projectOpt.get().getName(), safeDeliveryId);
+            metricsService.incrementWebhooksRejected();
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("error", "Invalid webhook signature"));
         }
