@@ -37,7 +37,9 @@ public class MetricsService {
     private final Timer buildDurationTimer;
     private final Timer deploymentDurationTimer;
 
-    public MetricsService(MeterRegistry registry, BuildManager buildManager, DeploymentManager deploymentManager) {
+    public MetricsService(MeterRegistry registry, 
+                          @org.springframework.context.annotation.Lazy BuildManager buildManager, 
+                          @org.springframework.context.annotation.Lazy DeploymentManager deploymentManager) {
         this.registry = registry;
 
         // Active and Queued builds gauge mapping directly to the BuildManager collections
