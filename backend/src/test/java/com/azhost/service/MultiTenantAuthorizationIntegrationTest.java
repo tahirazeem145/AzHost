@@ -79,7 +79,9 @@ public class MultiTenantAuthorizationIntegrationTest {
                 "project-a",
                 "Desc A",
                 ProjectFramework.REACT,
-                ProjectSourceType.LOCAL
+                ProjectSourceType.LOCAL,
+                null,
+                null
         );
         projectRepository.save(projectA);
     }

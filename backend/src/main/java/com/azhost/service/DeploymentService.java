@@ -115,6 +115,11 @@ public class DeploymentService {
     }
 
     @Transactional(readOnly = true)
+    public DeploymentListResponseDto getDeploymentsForProject(UUID projectId, String userEmail) {
+        return getDeploymentsForProject(projectId, userEmail, 0, 100);
+    }
+
+    @Transactional(readOnly = true)
     public DeploymentListResponseDto getDeploymentsForProject(UUID projectId, String userEmail, int page, int size) {
         Project project = projectAuthorizationService.verifyAccess(projectId, userEmail, ProjectRole.VIEWER);
         UUID activeId = project.getActiveDeployment() != null ? project.getActiveDeployment().getId() : null;

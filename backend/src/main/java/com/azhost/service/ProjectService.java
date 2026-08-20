@@ -65,6 +65,11 @@ public class ProjectService {
     }
 
     @Transactional(readOnly = true)
+    public ProjectListResponseDto getProjects(String userEmail, String search) {
+        return getProjects(userEmail, search, 0, 100);
+    }
+
+    @Transactional(readOnly = true)
     public ProjectListResponseDto getProjects(String userEmail, String search, int page, int size) {
         User user = getUser(userEmail);
         org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);

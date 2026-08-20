@@ -115,6 +115,11 @@ public class BuildService {
     }
 
     @Transactional(readOnly = true)
+    public List<BuildResponseDto> getBuildsForProject(UUID projectId, String userEmail) {
+        return getBuildsForProject(projectId, userEmail, 0, 100);
+    }
+
+    @Transactional(readOnly = true)
     public List<BuildResponseDto> getBuildsForProject(UUID projectId, String userEmail, int page, int size) {
         Project project = projectAuthorizationService.verifyAccess(projectId, userEmail, ProjectRole.VIEWER);
         org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
