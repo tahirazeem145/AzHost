@@ -106,7 +106,16 @@ public class ProductionHardeningConcurrencyIntegrationTest {
                 BuildLogStreamer logStreamer
         ) {
             if (useLatch) {
-                executionOrder.add(analysis.getProject().getName() + "-" + buildId);
+                // Determine project name from workspace path to avoid lazy-loading exceptions in background threads
+                String projectName = "ProjectA";
+                String wsStr = workspacePath.toString();
+                if (wsStr.contains("ws-2") || wsStr.contains("ws-5")) {
+                    projectName = "ProjectB";
+                } else if (wsStr.contains("ws-3")) {
+                    projectName = "ProjectC";
+                }
+                
+                executionOrder.add(projectName + "-" + buildId);
                 int current = activeBuildsCount.incrementAndGet();
                 synchronized (maxObservedConcurrency) {
                     if (current > maxObservedConcurrency.get()) {
@@ -214,15 +223,16 @@ public class ProductionHardeningConcurrencyIntegrationTest {
 
         // 3. Deployment B completes first and promotes
         depB.setStatus(DeploymentStatus.SUCCESS);
-        depB = deploymentRepository.save(depB);
+        depB = deploymentRepository.saveAndFlush(depB);
         deploymentService.setActiveDeploymentForProject(projectA.getId(), depB.getId());
 
         Project projectReloaded = projectRepository.findById(projectA.getId()).orElseThrow();
+        assertThat(projectReloaded.getActiveDeployment()).isNotNull();
         assertThat(projectReloaded.getActiveDeployment().getId()).isEqualTo(depB.getId());
 
         // 4. Deployment A completes later and tries to promote
         depA.setStatus(DeploymentStatus.SUCCESS);
-        depA = deploymentRepository.save(depA);
+        depA = deploymentRepository.saveAndFlush(depA);
 
         final DeploymentEntity finalDepA = depA;
         final DeploymentEntity finalDepB = depB;
