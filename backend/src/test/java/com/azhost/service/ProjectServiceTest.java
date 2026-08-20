@@ -14,6 +14,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.access.AccessDeniedException;
 
 import java.util.List;
 import java.util.Optional;
@@ -39,6 +40,9 @@ class ProjectServiceTest {
 
     @Mock
     private AuditLogService auditLogService;
+
+    @Mock
+    private ProjectAuthorizationService projectAuthorizationService;
 
     @InjectMocks
     private ProjectService projectService;
@@ -95,8 +99,7 @@ class ProjectServiceTest {
 
     @Test
     void getProjectById_WhenExists_ShouldReturnProject() {
-        given(userRepository.findByEmail(email)).willReturn(Optional.of(sampleUser));
-        given(projectRepository.findByIdAndUserId(sampleProject.getId(), sampleUser.getId())).willReturn(Optional.of(sampleProject));
+        given(projectAuthorizationService.verifyAccess(sampleProject.getId(), email, ProjectRole.VIEWER)).willReturn(sampleProject);
 
         ProjectResponseDto result = projectService.getProjectById(sampleProject.getId(), email);
 
@@ -107,8 +110,7 @@ class ProjectServiceTest {
     @Test
     void getProjectById_WhenNotFound_ShouldThrowException() {
         UUID randomId = UUID.randomUUID();
-        given(userRepository.findByEmail(email)).willReturn(Optional.of(sampleUser));
-        given(projectRepository.findByIdAndUserId(randomId, sampleUser.getId())).willReturn(Optional.empty());
+        given(projectAuthorizationService.verifyAccess(randomId, email, ProjectRole.VIEWER)).willThrow(new ProjectNotFoundException("Project not found"));
 
         assertThatThrownBy(() -> projectService.getProjectById(randomId, email))
                 .isInstanceOf(ProjectNotFoundException.class);
@@ -117,7 +119,7 @@ class ProjectServiceTest {
     @Test
     void deleteProject_ShouldCallRepositoryDelete() {
         given(userRepository.findByEmail(email)).willReturn(Optional.of(sampleUser));
-        given(projectRepository.findByIdAndUserId(sampleProject.getId(), sampleUser.getId())).willReturn(Optional.of(sampleProject));
+        given(projectAuthorizationService.verifyAccess(sampleProject.getId(), email, ProjectRole.OWNER)).willReturn(sampleProject);
 
         projectService.deleteProject(sampleProject.getId(), email);
 

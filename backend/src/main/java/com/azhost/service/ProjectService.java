@@ -66,7 +66,21 @@ public class ProjectService {
 
     @Transactional(readOnly = true)
     public ProjectListResponseDto getProjects(String userEmail, String search) {
-        return getProjects(userEmail, search, 0, 100);
+        User user = getUser(userEmail);
+        List<Project> projects;
+
+        if (search != null && !search.isBlank()) {
+            projects = projectRepository.searchByUserIdAndQuery(user.getId(), search.trim());
+        } else {
+            projects = projectRepository.findAllByUserIdOrderByCreatedAtDesc(user.getId());
+        }
+
+        List<ProjectResponseDto> dtos = projects.stream()
+                .map(ProjectResponseDto::new)
+                .collect(Collectors.toList());
+
+        long totalCount = projectRepository.countByUserId(user.getId());
+        return new ProjectListResponseDto(dtos, totalCount);
     }
 
     @Transactional(readOnly = true)

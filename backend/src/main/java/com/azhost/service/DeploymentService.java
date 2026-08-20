@@ -116,7 +116,17 @@ public class DeploymentService {
 
     @Transactional(readOnly = true)
     public DeploymentListResponseDto getDeploymentsForProject(UUID projectId, String userEmail) {
-        return getDeploymentsForProject(projectId, userEmail, 0, 100);
+        User user = getUser(userEmail);
+        Project project = projectRepository.findByIdAndUserId(projectId, user.getId())
+                .orElseThrow(() -> new ProjectNotFoundException("Project not found with ID: " + projectId));
+
+        UUID activeId = project.getActiveDeployment() != null ? project.getActiveDeployment().getId() : null;
+
+        List<DeploymentResponseDto> list = deploymentRepository.findByProjectIdOrderByCreatedAtDesc(project.getId()).stream()
+                .map(entity -> new DeploymentResponseDto(entity, entity.getId().equals(activeId)))
+                .collect(Collectors.toList());
+
+        return new DeploymentListResponseDto(list);
     }
 
     @Transactional(readOnly = true)

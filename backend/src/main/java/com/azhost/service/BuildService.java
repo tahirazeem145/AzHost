@@ -116,7 +116,13 @@ public class BuildService {
 
     @Transactional(readOnly = true)
     public List<BuildResponseDto> getBuildsForProject(UUID projectId, String userEmail) {
-        return getBuildsForProject(projectId, userEmail, 0, 100);
+        User user = getUser(userEmail);
+        Project project = projectRepository.findByIdAndUserId(projectId, user.getId())
+                .orElseThrow(() -> new ProjectNotFoundException("Project not found with ID: " + projectId));
+
+        return projectBuildRepository.findByProjectIdOrderByCreatedAtDesc(project.getId()).stream()
+                .map(BuildResponseDto::new)
+                .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
