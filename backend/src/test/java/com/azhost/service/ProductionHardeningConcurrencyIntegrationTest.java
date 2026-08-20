@@ -76,17 +76,16 @@ public class ProductionHardeningConcurrencyIntegrationTest {
         projectRepository.deleteAll();
         userRepository.deleteAll();
 
-        user = new User("test-concurrency@azhost.dev", "hash", "Concurrency User");
-        user = userRepository.save(user);
+        user = userRepository.saveAndFlush(user);
 
         projectA = new Project(user, "ProjectA", "project-a", "desc", ProjectFramework.STATIC, ProjectSourceType.GITHUB, "http://github.com", "main");
-        projectA = projectRepository.save(projectA);
+        projectA = projectRepository.saveAndFlush(projectA);
 
         projectB = new Project(user, "ProjectB", "project-b", "desc", ProjectFramework.STATIC, ProjectSourceType.GITHUB, "http://github.com", "main");
-        projectB = projectRepository.save(projectB);
+        projectB = projectRepository.saveAndFlush(projectB);
 
         projectC = new Project(user, "ProjectC", "project-c", "desc", ProjectFramework.STATIC, ProjectSourceType.GITHUB, "http://github.com", "main");
-        projectC = projectRepository.save(projectC);
+        projectC = projectRepository.saveAndFlush(projectC);
 
         ProjectAnalysisEntity analysisA = new ProjectAnalysisEntity(projectA);
         analysisA.setFramework(ProjectFramework.STATIC);
@@ -98,7 +97,7 @@ public class ProductionHardeningConcurrencyIntegrationTest {
         analysisA.setNodeVersion("20");
         analysisA.setBuildCommand("npm run build");
         analysisA.setOutputDirectory("dist");
-        analysisRepository.save(analysisA);
+        analysisRepository.saveAndFlush(analysisA);
 
         ProjectAnalysisEntity analysisB = new ProjectAnalysisEntity(projectB);
         analysisB.setFramework(ProjectFramework.STATIC);
@@ -110,7 +109,7 @@ public class ProductionHardeningConcurrencyIntegrationTest {
         analysisB.setNodeVersion("20");
         analysisB.setBuildCommand("npm run build");
         analysisB.setOutputDirectory("dist");
-        analysisRepository.save(analysisB);
+        analysisRepository.saveAndFlush(analysisB);
 
         ProjectAnalysisEntity analysisC = new ProjectAnalysisEntity(projectC);
         analysisC.setFramework(ProjectFramework.STATIC);
@@ -122,7 +121,7 @@ public class ProductionHardeningConcurrencyIntegrationTest {
         analysisC.setNodeVersion("20");
         analysisC.setBuildCommand("npm run build");
         analysisC.setOutputDirectory("dist");
-        analysisRepository.save(analysisC);
+        analysisRepository.saveAndFlush(analysisC);
     }
 
     @Test
