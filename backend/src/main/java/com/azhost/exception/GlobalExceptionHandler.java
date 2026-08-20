@@ -15,6 +15,11 @@ import java.time.LocalDateTime;
 public class GlobalExceptionHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+    private final org.springframework.core.env.Environment environment;
+
+    public GlobalExceptionHandler(org.springframework.core.env.Environment environment) {
+        this.environment = environment;
+    }
 
     @ExceptionHandler(ProjectNotFoundException.class)
     public ResponseEntity<ErrorResponseDto> handleProjectNotFound(ProjectNotFoundException ex, HttpServletRequest request) {
@@ -245,8 +250,20 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponseDto> handleGlobalException(Exception ex, HttpServletRequest request) {
+    public ResponseEntity<Object> handleGlobalException(Exception ex, HttpServletRequest request) {
         logger.error("Unhandled exception processing request path: {}", request.getRequestURI(), ex);
+        
+        List<String> activeProfiles = java.util.Arrays.asList(environment.getActiveProfiles());
+        if (activeProfiles.contains("prod")) {
+            String reqId = org.slf4j.MDC.get("requestId");
+            java.util.Map<String, Object> error = java.util.Map.of(
+                "code", "INTERNAL_ERROR",
+                "message", "An unexpected error occurred.",
+                "requestId", reqId != null ? reqId : "unknown"
+            );
+            return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+
         ErrorResponseDto error = new ErrorResponseDto(
                 LocalDateTime.now(),
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
