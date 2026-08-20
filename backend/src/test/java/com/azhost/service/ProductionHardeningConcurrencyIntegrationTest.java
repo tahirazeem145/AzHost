@@ -64,7 +64,7 @@ public class ProductionHardeningConcurrencyIntegrationTest {
     private BuildExecutor buildExecutor;
 
     @Autowired
-    private jakarta.persistence.EntityManager entityManager;
+    private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
     private User user;
     private Project projectA;
@@ -72,7 +72,6 @@ public class ProductionHardeningConcurrencyIntegrationTest {
     private Project projectC;
 
     @BeforeEach
-    @Transactional
     public void setUp() {
         buildManager.reset();
         deploymentRepository.deleteAll();
@@ -93,41 +92,10 @@ public class ProductionHardeningConcurrencyIntegrationTest {
         projectC = new Project(user, "ProjectC", "project-c", "desc", ProjectFramework.STATIC, ProjectSourceType.GITHUB, "http://github.com", "main");
         projectC = projectRepository.saveAndFlush(projectC);
 
-        ProjectAnalysisEntity analysisA = new ProjectAnalysisEntity(projectA);
-        analysisA.setFramework(ProjectFramework.STATIC);
-        analysisA.setFrameworkConfidence(com.azhost.analysis.DetectionConfidence.HIGH);
-        analysisA.setLanguage("JavaScript");
-        analysisA.setConfidence(com.azhost.analysis.DetectionConfidence.HIGH);
-        analysisA.setPackageManager("NPM");
-        analysisA.setPackageManagerConfidence(com.azhost.analysis.DetectionConfidence.HIGH);
-        analysisA.setNodeVersion("20");
-        analysisA.setBuildCommand("npm run build");
-        analysisA.setOutputDirectory("dist");
-        entityManager.persist(analysisA);
-
-        ProjectAnalysisEntity analysisB = new ProjectAnalysisEntity(projectB);
-        analysisB.setFramework(ProjectFramework.STATIC);
-        analysisB.setFrameworkConfidence(com.azhost.analysis.DetectionConfidence.HIGH);
-        analysisB.setLanguage("JavaScript");
-        analysisB.setConfidence(com.azhost.analysis.DetectionConfidence.HIGH);
-        analysisB.setPackageManager("NPM");
-        analysisB.setPackageManagerConfidence(com.azhost.analysis.DetectionConfidence.HIGH);
-        analysisB.setNodeVersion("20");
-        analysisB.setBuildCommand("npm run build");
-        analysisB.setOutputDirectory("dist");
-        entityManager.persist(analysisB);
-
-        ProjectAnalysisEntity analysisC = new ProjectAnalysisEntity(projectC);
-        analysisC.setFramework(ProjectFramework.STATIC);
-        analysisC.setFrameworkConfidence(com.azhost.analysis.DetectionConfidence.HIGH);
-        analysisC.setLanguage("JavaScript");
-        analysisC.setConfidence(com.azhost.analysis.DetectionConfidence.HIGH);
-        analysisC.setPackageManager("NPM");
-        analysisC.setPackageManagerConfidence(com.azhost.analysis.DetectionConfidence.HIGH);
-        analysisC.setNodeVersion("20");
-        analysisC.setBuildCommand("npm run build");
-        analysisC.setOutputDirectory("dist");
-        entityManager.persist(analysisC);
+        String sql = "INSERT INTO project_analysis (project_id, framework, framework_confidence, language, package_manager, package_manager_confidence, confidence, executed, output_directory, node_version, build_command, analyzed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        jdbcTemplate.update(sql, projectA.getId(), "STATIC", "HIGH", "JavaScript", "NPM", "HIGH", "HIGH", false, "dist", "20", "npm run build", new java.sql.Timestamp(System.currentTimeMillis()));
+        jdbcTemplate.update(sql, projectB.getId(), "STATIC", "HIGH", "JavaScript", "NPM", "HIGH", "HIGH", false, "dist", "20", "npm run build", new java.sql.Timestamp(System.currentTimeMillis()));
+        jdbcTemplate.update(sql, projectC.getId(), "STATIC", "HIGH", "JavaScript", "NPM", "HIGH", "HIGH", false, "dist", "20", "npm run build", new java.sql.Timestamp(System.currentTimeMillis()));
     }
 
     @Test
