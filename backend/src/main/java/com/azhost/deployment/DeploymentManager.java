@@ -30,22 +30,29 @@ public class DeploymentManager {
     private final DeploymentCleanupService cleanupService;
     private final ArtifactReader artifactReader;
     private final StaticFilePublisher staticFilePublisher;
+    private final com.azhost.service.MetricsService metricsService;
 
     private final ConcurrentHashMap<UUID, UUID> activeProjectDeployments = new ConcurrentHashMap<>();
     private final ExecutorService executorService = Executors.newFixedThreadPool(DeploymentResourceLimits.MAX_GLOBAL_CONCURRENT_DEPLOYMENTS);
+
+    public int getActiveDeploymentsCount() {
+        return activeProjectDeployments.size();
+    }
 
     public DeploymentManager(
             DeploymentRepository deploymentRepository,
             DeploymentWorkspaceManager workspaceManager,
             DeploymentCleanupService cleanupService,
             ArtifactReader artifactReader,
-            StaticFilePublisher staticFilePublisher
+            StaticFilePublisher staticFilePublisher,
+            com.azhost.service.MetricsService metricsService
     ) {
         this.deploymentRepository = deploymentRepository;
         this.workspaceManager = workspaceManager;
         this.cleanupService = cleanupService;
         this.artifactReader = artifactReader;
         this.staticFilePublisher = staticFilePublisher;
+        this.metricsService = metricsService;
     }
 
     public synchronized void registerActiveDeployment(UUID projectId, UUID deploymentId) {
@@ -74,6 +81,7 @@ public class DeploymentManager {
             Runnable onSuccessCallback
     ) {
         executorService.submit(() -> {
+            long startTime = System.currentTimeMillis();
             String deploymentIdStr = deploymentEntity.getId().toString();
             Path tempWorkspacePath = null;
             try {
@@ -103,6 +111,9 @@ public class DeploymentManager {
                 deploymentEntity.setPublishedAt(ZonedDateTime.now());
                 deploymentRepository.save(deploymentEntity);
 
+                metricsService.incrementDeploymentSuccess();
+                metricsService.recordDeploymentDuration(System.currentTimeMillis() - startTime);
+
                 if (onSuccessCallback != null) {
                     onSuccessCallback.run();
                 }
@@ -115,6 +126,9 @@ public class DeploymentManager {
                 deploymentEntity.setErrorMessage(e.getMessage());
                 deploymentEntity.setFailedAt(ZonedDateTime.now());
                 deploymentRepository.save(deploymentEntity);
+                
+                metricsService.incrementDeploymentFailed();
+                metricsService.recordDeploymentDuration(System.currentTimeMillis() - startTime);
             } finally {
                 unregisterActiveDeployment(deploymentEntity.getProject().getId());
                 if (tempWorkspacePath != null) {
