@@ -184,16 +184,15 @@ public class DeploymentService {
     }
 
     @Transactional
-    public synchronized void setActiveDeploymentForProject(UUID projectId, UUID deploymentId) {
-        Project project = projectRepository.findById(projectId).orElse(null);
+    public void setActiveDeploymentForProject(UUID projectId, UUID deploymentId) {
+        Project project = projectRepository.findAndLockById(projectId).orElse(null);
         DeploymentEntity deployment = deploymentRepository.findById(deploymentId).orElse(null);
         if (project != null && deployment != null && deployment.getStatus() == DeploymentStatus.SUCCESS) {
             DeploymentEntity currentActive = project.getActiveDeployment();
             if (currentActive != null) {
-                // If candidate deployment's creation time is before the currently active one, reject promotion
-                if (deployment.getCreatedAt().isBefore(currentActive.getCreatedAt())) {
-                    logger.warn("Prevented stale deployment promotion: Candidate deployment '{}' (created: {}) is older than currently active deployment '{}' (created: {})",
-                            deployment.getId(), deployment.getCreatedAt(), currentActive.getId(), currentActive.getCreatedAt());
+                if (deployment.getSequenceNumber() < currentActive.getSequenceNumber()) {
+                    logger.warn("Prevented stale deployment promotion: Candidate deployment '{}' (sequence: {}) is older than currently active deployment '{}' (sequence: {})",
+                            deployment.getId(), deployment.getSequenceNumber(), currentActive.getId(), currentActive.getSequenceNumber());
                     return;
                 }
             }
