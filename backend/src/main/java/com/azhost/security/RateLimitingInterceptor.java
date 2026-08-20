@@ -4,6 +4,7 @@ import com.azhost.config.AzHostBuildProperties;
 import com.azhost.service.MetricsService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.context.ApplicationContext;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
@@ -15,12 +16,12 @@ import java.util.concurrent.ConcurrentHashMap;
 public class RateLimitingInterceptor implements HandlerInterceptor {
 
     private final AzHostBuildProperties properties;
-    private final MetricsService metricsService;
+    private final ApplicationContext applicationContext;
     private final Map<String, TokenBucket> buckets = new ConcurrentHashMap<>();
 
-    public RateLimitingInterceptor(AzHostBuildProperties properties, MetricsService metricsService) {
+    public RateLimitingInterceptor(AzHostBuildProperties properties, ApplicationContext applicationContext) {
         this.properties = properties;
-        this.metricsService = metricsService;
+        this.applicationContext = applicationContext;
     }
 
     @Override
@@ -37,9 +38,6 @@ public class RateLimitingInterceptor implements HandlerInterceptor {
             return true;
         }
 
-        // Project creation limit: 5/minute
-        // Build creation limit: 10/minute
-        // Deployment creation limit: 10/minute
         double capacity = -1;
         
         if (method.equalsIgnoreCase("POST") && path.equals("/api/projects")) {
@@ -49,7 +47,6 @@ public class RateLimitingInterceptor implements HandlerInterceptor {
         } else if (method.equalsIgnoreCase("POST") && path.matches("/api/projects/[^/]+/deployments")) {
             capacity = 10.0;
         } else if (path.contains("/deployments") || path.contains("/builds") || path.contains("/github")) {
-            // General fallback limit
             capacity = properties.getRateLimit().getRequestsPerMinute();
         }
 
@@ -57,7 +54,6 @@ public class RateLimitingInterceptor implements HandlerInterceptor {
             String identityKey = getIdentityKey(request);
             String bucketKey = identityKey + ":" + path;
 
-            // Bounded state: prevent map memory explosion
             if (buckets.size() > 5000) {
                 buckets.clear();
             }
@@ -69,7 +65,12 @@ public class RateLimitingInterceptor implements HandlerInterceptor {
             ));
 
             if (!bucket.tryConsume()) {
-                metricsService.incrementRateLimitRejections();
+                try {
+                    MetricsService metricsService = applicationContext.getBean(MetricsService.class);
+                    metricsService.incrementRateLimitRejections();
+                } catch (Exception e) {
+                    // Fallback when MetricsService is not present in the WebMvc slice context
+                }
                 response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
                 response.getWriter().write("Too many requests. Please try again later.");
                 return false;
