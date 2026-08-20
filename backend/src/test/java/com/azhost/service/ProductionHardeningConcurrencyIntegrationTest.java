@@ -173,11 +173,12 @@ public class ProductionHardeningConcurrencyIntegrationTest {
 
         List<String> executionOrder = Collections.synchronizedList(new ArrayList<>());
 
-        when(buildExecutor.executeBuild(any(), any(), any(), any())).thenAnswer(invocation -> {
+        Mockito.doAnswer(invocation -> {
             UUID buildId = invocation.getArgument(0);
-            ProjectBuildEntity b = buildRepository.findById(buildId).orElseThrow();
+            ProjectBuildEntity b = buildRepository.findById(buildId).orElse(null);
+            String name = (b != null && b.getProject() != null) ? b.getProject().getName() : "UnknownProject";
             
-            executionOrder.add(b.getProject().getName() + "-" + b.getId());
+            executionOrder.add(name + "-" + buildId);
             int current = activeBuildsCount.incrementAndGet();
             
             synchronized (maxObservedConcurrency) {
@@ -193,7 +194,7 @@ public class ProductionHardeningConcurrencyIntegrationTest {
             
             activeBuildsCount.decrementAndGet();
             return BuildResult.success(100L, "mock-artifact-" + buildId, "/tmp/art");
-        });
+        }).when(buildExecutor).executeBuild(any(), any(), any(), any());
 
         // Submit 5 builds:
         // B1 -> Project A
