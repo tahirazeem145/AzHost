@@ -1,7 +1,6 @@
 package com.azhost.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.stereotype.Component;
 
 @ConfigurationProperties(prefix = "azhost")
 public class AzHostBuildProperties {
@@ -9,6 +8,7 @@ public class AzHostBuildProperties {
     private final Build build = new Build();
     private final Deployment deployment = new Deployment();
     private final RateLimit rateLimit = new RateLimit();
+    private final Limits limits = new Limits();
 
     public Build getBuild() {
         return build;
@@ -20,6 +20,10 @@ public class AzHostBuildProperties {
 
     public RateLimit getRateLimit() {
         return rateLimit;
+    }
+
+    public Limits getLimits() {
+        return limits;
     }
 
     public static class Build {
@@ -135,6 +139,70 @@ public class AzHostBuildProperties {
 
         public void setRequestsPerMinute(int requestsPerMinute) {
             this.requestsPerMinute = requestsPerMinute;
+        }
+    }
+
+    public static class Limits {
+        private final PerProject perProject = new PerProject();
+        private final PerUser perUser = new PerUser();
+
+        public PerProject getPerProject() {
+            return perProject;
+        }
+
+        public PerUser getPerUser() {
+            return perUser;
+        }
+
+        public static class PerProject {
+            private int maxConcurrentBuilds = 1;
+            private int maxQueuedBuilds = 5;
+            private long maxArtifactStorageBytes = 500 * 1024 * 1024L; // 500 MB
+
+            public int getMaxConcurrentBuilds() {
+                return maxConcurrentBuilds;
+            }
+
+            public void setMaxConcurrentBuilds(int maxConcurrentBuilds) {
+                this.maxConcurrentBuilds = maxConcurrentBuilds;
+            }
+
+            public int getMaxQueuedBuilds() {
+                return maxQueuedBuilds;
+            }
+
+            public void setMaxQueuedBuilds(int maxQueuedBuilds) {
+                this.maxQueuedBuilds = maxQueuedBuilds;
+            }
+
+            public long getMaxArtifactStorageBytes() {
+                return maxArtifactStorageBytes;
+            }
+
+            public void setMaxArtifactStorageBytes(long maxArtifactStorageBytes) {
+                this.maxArtifactStorageBytes = maxArtifactStorageBytes;
+            }
+        }
+
+        public static class PerUser {
+            private int maxConcurrentBuilds = 2;
+            private int maxQueuedBuilds = 10;
+
+            public int getMaxConcurrentBuilds() {
+                return maxConcurrentBuilds;
+            }
+
+            public void setMaxConcurrentBuilds(int maxConcurrentBuilds) {
+                this.maxConcurrentBuilds = maxConcurrentBuilds;
+            }
+
+            public int getMaxQueuedBuilds() {
+                return maxQueuedBuilds;
+            }
+
+            public void setMaxQueuedBuilds(int maxQueuedBuilds) {
+                this.maxQueuedBuilds = maxQueuedBuilds;
+            }
         }
     }
 }

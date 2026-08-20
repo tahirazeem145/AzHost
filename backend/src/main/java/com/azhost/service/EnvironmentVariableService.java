@@ -2,7 +2,7 @@ package com.azhost.service;
 
 import com.azhost.entity.EnvironmentVariableEntity;
 import com.azhost.entity.Project;
-import com.azhost.entity.User;
+import com.azhost.entity.ProjectRole;
 import com.azhost.exception.ProjectNotFoundException;
 import com.azhost.github.security.GitHubTokenEncryptor;
 import com.azhost.repository.EnvironmentVariableRepository;
@@ -21,25 +21,22 @@ public class EnvironmentVariableService {
     private static final Pattern ENV_NAME_PATTERN = Pattern.compile("^[a-zA-Z_][a-zA-Z0-9_]*$");
 
     private final EnvironmentVariableRepository repository;
-    private final ProjectRepository projectRepository;
-    private final UserRepository userRepository;
     private final GitHubTokenEncryptor encryptor;
+    private final ProjectAuthorizationService projectAuthorizationService;
 
     public EnvironmentVariableService(
             EnvironmentVariableRepository repository,
-            ProjectRepository projectRepository,
-            UserRepository userRepository,
-            GitHubTokenEncryptor encryptor
+            GitHubTokenEncryptor encryptor,
+            ProjectAuthorizationService projectAuthorizationService
     ) {
         this.repository = repository;
-        this.projectRepository = projectRepository;
-        this.userRepository = userRepository;
         this.encryptor = encryptor;
+        this.projectAuthorizationService = projectAuthorizationService;
     }
 
     @Transactional(readOnly = true)
     public List<EnvironmentVariableEntity> getVariablesForProject(UUID projectId, String userEmail) {
-        Project project = getProjectValidated(projectId, userEmail);
+        Project project = projectAuthorizationService.verifyAccess(projectId, userEmail, ProjectRole.VIEWER);
         return repository.findByProjectId(project.getId());
     }
 
@@ -52,7 +49,7 @@ public class EnvironmentVariableService {
             String environment,
             String userEmail
     ) {
-        Project project = getProjectValidated(projectId, userEmail);
+        Project project = projectAuthorizationService.verifyAccess(projectId, userEmail, ProjectRole.OWNER);
         validateName(name);
 
         String envStr = (environment == null || environment.isBlank()) ? "production" : environment.trim().toLowerCase();
@@ -76,7 +73,7 @@ public class EnvironmentVariableService {
             String environment,
             String userEmail
     ) {
-        Project project = getProjectValidated(projectId, userEmail);
+        Project project = projectAuthorizationService.verifyAccess(projectId, userEmail, ProjectRole.OWNER);
         EnvironmentVariableEntity entity = repository.findById(variableId)
                 .orElseThrow(() -> new IllegalArgumentException("Environment variable not found with ID: " + variableId));
 
@@ -97,7 +94,7 @@ public class EnvironmentVariableService {
 
     @Transactional
     public void deleteVariable(UUID projectId, UUID variableId, String userEmail) {
-        Project project = getProjectValidated(projectId, userEmail);
+        Project project = projectAuthorizationService.verifyAccess(projectId, userEmail, ProjectRole.OWNER);
         EnvironmentVariableEntity entity = repository.findById(variableId)
                 .orElseThrow(() -> new IllegalArgumentException("Environment variable not found with ID: " + variableId));
 
@@ -119,12 +116,5 @@ public class EnvironmentVariableService {
         if (!ENV_NAME_PATTERN.matcher(name).matches()) {
             throw new IllegalArgumentException("Invalid environment variable name. It must start with a letter or underscore and contain only alphanumeric characters and underscores.");
         }
-    }
-
-    private Project getProjectValidated(UUID projectId, String userEmail) {
-        User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new IllegalStateException("User context not found for email: " + userEmail));
-        return projectRepository.findByIdAndUserId(projectId, user.getId())
-                .orElseThrow(() -> new ProjectNotFoundException("Project not found with ID: " + projectId));
     }
 }

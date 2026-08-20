@@ -2,7 +2,7 @@ package com.azhost.service;
 
 import com.azhost.build.BuildLogStreamer;
 import com.azhost.build.BuildManager;
-import com.azhost.build.executor.BuildWorkspaceManager;
+import com.azhost.build.workspace.BuildWorkspaceManager;
 import com.azhost.dto.BuildLogResponseDto;
 import com.azhost.dto.BuildResponseDto;
 import com.azhost.entity.*;

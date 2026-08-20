@@ -64,6 +64,20 @@ public class ArtifactRetentionService {
                     continue;
                 }
 
+                // Never delete if referenced by any of the recent (top maxHistory) deployments
+                boolean isShared = false;
+                for (int j = 0; j < Math.min(maxHistory, deployments.size()); j++) {
+                    DeploymentEntity topDep = deployments.get(j);
+                    if (topDep.getBuild() != null && topDep.getBuild().getArtifactId() != null &&
+                        topDep.getBuild().getArtifactId().equals(dep.getBuild().getArtifactId())) {
+                        isShared = true;
+                        break;
+                    }
+                }
+                if (isShared) {
+                    continue;
+                }
+
                 // Delete physical files
                 if (dep.getDeploymentPath() != null) {
                     Path path = Paths.get(dep.getDeploymentPath());

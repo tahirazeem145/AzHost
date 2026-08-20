@@ -16,10 +16,16 @@ public class ProjectAuthorizationService {
 
     private final ProjectRepository projectRepository;
     private final ProjectMemberRepository memberRepository;
+    private final MetricsService metricsService;
 
-    public ProjectAuthorizationService(ProjectRepository projectRepository, ProjectMemberRepository memberRepository) {
+    public ProjectAuthorizationService(
+            ProjectRepository projectRepository,
+            ProjectMemberRepository memberRepository,
+            MetricsService metricsService
+    ) {
         this.projectRepository = projectRepository;
         this.memberRepository = memberRepository;
+        this.metricsService = metricsService;
     }
 
     public Project verifyAccess(UUID projectId, String userEmail, ProjectRole minimumRole) {
@@ -28,6 +34,7 @@ public class ProjectAuthorizationService {
 
         ProjectRole userRole = getRoleForUser(project, userEmail);
         if (userRole == null || !userRole.satisfies(minimumRole)) {
+            metricsService.incrementAuthorizationFailures();
             throw new AccessDeniedException("Access denied: minimum role " + minimumRole + " required");
         }
 

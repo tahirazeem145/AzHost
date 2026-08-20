@@ -33,6 +33,12 @@ public class MetricsService {
     private final Counter webhooksDuplicateCounter;
     private final Counter webhooksFailedCounter;
 
+    // Multi-tenant operational rejections counters
+    private final Counter rateLimitRejectionsCounter;
+    private final Counter quotaRejectionsCounter;
+    private final Counter authorizationFailuresCounter;
+    private final Counter buildAdmissionRejectionsCounter;
+
     // Timers
     private final Timer buildDurationTimer;
     private final Timer deploymentDurationTimer;
@@ -45,10 +51,6 @@ public class MetricsService {
         // Active and Queued builds gauge mapping directly to the BuildManager collections
         Gauge.builder("azhost_active_builds", buildManager, BuildManager::getActiveBuildsCount)
                 .description("Number of builds currently executing active compilation/isolation tasks")
-                .register(registry);
-
-        Gauge.builder("azhost_queued_builds", buildManager, BuildManager::getQueuedBuildsCount)
-                .description("Number of builds pending execution slots in queue")
                 .register(registry);
 
         // Active deployments gauge mapping directly to the DeploymentManager collection
@@ -107,6 +109,20 @@ public class MetricsService {
                 .register(registry);
         this.webhooksFailedCounter = Counter.builder("azhost_webhooks_failed")
                 .description("Total GitHub webhooks processing failures")
+                .register(registry);
+
+        // Multi-tenant operational rejections counters
+        this.rateLimitRejectionsCounter = Counter.builder("azhost_rate_limit_rejections_total")
+                .description("Total requests rejected due to rate limiting")
+                .register(registry);
+        this.quotaRejectionsCounter = Counter.builder("azhost_quota_rejections_total")
+                .description("Total builds rejected due to storage quota limits")
+                .register(registry);
+        this.authorizationFailuresCounter = Counter.builder("azhost_authorization_failures_total")
+                .description("Total requests rejected due to authorization failures")
+                .register(registry);
+        this.buildAdmissionRejectionsCounter = Counter.builder("azhost_build_admission_rejections_total")
+                .description("Total builds rejected at queue admission control")
                 .register(registry);
 
         // Duration Timers
@@ -168,6 +184,22 @@ public class MetricsService {
 
     public void incrementWebhooksFailed() {
         webhooksFailedCounter.increment();
+    }
+
+    public void incrementRateLimitRejections() {
+        rateLimitRejectionsCounter.increment();
+    }
+
+    public void incrementQuotaRejections() {
+        quotaRejectionsCounter.increment();
+    }
+
+    public void incrementAuthorizationFailures() {
+        authorizationFailuresCounter.increment();
+    }
+
+    public void incrementBuildAdmissionRejections() {
+        buildAdmissionRejectionsCounter.increment();
     }
 
     public void recordBuildDuration(long durationMs) {

@@ -1,6 +1,7 @@
 package com.azhost.security;
 
 import com.azhost.config.AzHostBuildProperties;
+import com.azhost.service.MetricsService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpStatus;
@@ -14,10 +15,12 @@ import java.util.concurrent.ConcurrentHashMap;
 public class RateLimitingInterceptor implements HandlerInterceptor {
 
     private final AzHostBuildProperties properties;
-    private final Map<String, TokenBucket> ipBuckets = new ConcurrentHashMap<>();
+    private final MetricsService metricsService;
+    private final Map<String, TokenBucket> buckets = new ConcurrentHashMap<>();
 
-    public RateLimitingInterceptor(AzHostBuildProperties properties) {
+    public RateLimitingInterceptor(AzHostBuildProperties properties, MetricsService metricsService) {
         this.properties = properties;
+        this.metricsService = metricsService;
     }
 
     @Override
@@ -27,21 +30,46 @@ public class RateLimitingInterceptor implements HandlerInterceptor {
         }
 
         String path = request.getRequestURI();
+        String method = request.getMethod();
         
-        // Exclude GitHub webhook from raw IP rate limiting (already protected by HMAC/idempotency)
+        // Exclude GitHub webhook from raw IP rate limiting (signature/idempotency checked)
         if (path.startsWith("/api/webhooks/github")) {
             return true;
         }
 
-        // Apply rate limit to deployment creation, manual build start, SCM operations
-        if (path.contains("/deployments") || path.contains("/builds") || path.contains("/github")) {
-            String clientIp = getClientIp(request);
-            TokenBucket bucket = ipBuckets.computeIfAbsent(clientIp, k -> new TokenBucket(
-                    properties.getRateLimit().getRequestsPerMinute(),
-                    properties.getRateLimit().getRequestsPerMinute() / 60.0
+        // Project creation limit: 5/minute
+        // Build creation limit: 10/minute
+        // Deployment creation limit: 10/minute
+        double capacity = -1;
+        
+        if (method.equalsIgnoreCase("POST") && path.equals("/api/projects")) {
+            capacity = 5.0;
+        } else if (method.equalsIgnoreCase("POST") && path.matches("/api/projects/[^/]+/builds")) {
+            capacity = 10.0;
+        } else if (method.equalsIgnoreCase("POST") && path.matches("/api/projects/[^/]+/deployments")) {
+            capacity = 10.0;
+        } else if (path.contains("/deployments") || path.contains("/builds") || path.contains("/github")) {
+            // General fallback limit
+            capacity = properties.getRateLimit().getRequestsPerMinute();
+        }
+
+        if (capacity > 0) {
+            String identityKey = getIdentityKey(request);
+            String bucketKey = identityKey + ":" + path;
+
+            // Bounded state: prevent map memory explosion
+            if (buckets.size() > 5000) {
+                buckets.clear();
+            }
+
+            double finalCap = capacity;
+            TokenBucket bucket = buckets.computeIfAbsent(bucketKey, k -> new TokenBucket(
+                    finalCap,
+                    finalCap / 60.0
             ));
 
             if (!bucket.tryConsume()) {
+                metricsService.incrementRateLimitRejections();
                 response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
                 response.getWriter().write("Too many requests. Please try again later.");
                 return false;
@@ -49,6 +77,14 @@ public class RateLimitingInterceptor implements HandlerInterceptor {
         }
 
         return true;
+    }
+
+    private String getIdentityKey(HttpServletRequest request) {
+        java.security.Principal principal = request.getUserPrincipal();
+        if (principal != null && principal.getName() != null) {
+            return "user:" + principal.getName();
+        }
+        return "ip:" + getClientIp(request);
     }
 
     private String getClientIp(HttpServletRequest request) {

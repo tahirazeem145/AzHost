@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.Principal;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -26,8 +27,9 @@ public class EnvironmentVariableController {
     }
 
     @GetMapping
-    public ResponseEntity<List<EnvVarResponseDto>> getVariables(@PathVariable UUID projectId) {
-        List<EnvironmentVariableEntity> vars = service.getVariablesForProject(projectId, DevUserInitializer.DEV_USER_EMAIL);
+    public ResponseEntity<List<EnvVarResponseDto>> getVariables(@PathVariable UUID projectId, Principal principal) {
+        String email = principal != null ? principal.getName() : DevUserInitializer.DEV_USER_EMAIL;
+        List<EnvironmentVariableEntity> vars = service.getVariablesForProject(projectId, email);
         List<EnvVarResponseDto> response = vars.stream()
                 .map(v -> new EnvVarResponseDto(v, service.decryptValue(v)))
                 .collect(Collectors.toList());
@@ -37,15 +39,17 @@ public class EnvironmentVariableController {
     @PostMapping
     public ResponseEntity<EnvVarResponseDto> createVariable(
             @PathVariable UUID projectId,
-            @RequestBody Map<String, Object> body
+            @RequestBody Map<String, Object> body,
+            Principal principal
     ) {
+        String email = principal != null ? principal.getName() : DevUserInitializer.DEV_USER_EMAIL;
         String name = (String) body.get("name");
         String value = (String) body.get("value");
         boolean secret = body.get("secret") != null && (Boolean) body.get("secret");
         String environment = (String) body.get("environment");
 
         EnvironmentVariableEntity entity = service.createVariable(
-                projectId, name, value, secret, environment, DevUserInitializer.DEV_USER_EMAIL
+                projectId, name, value, secret, environment, email
         );
 
         auditLogService.log(
@@ -65,14 +69,16 @@ public class EnvironmentVariableController {
     public ResponseEntity<EnvVarResponseDto> updateVariable(
             @PathVariable UUID projectId,
             @PathVariable UUID varId,
-            @RequestBody Map<String, Object> body
+            @RequestBody Map<String, Object> body,
+            Principal principal
     ) {
+        String email = principal != null ? principal.getName() : DevUserInitializer.DEV_USER_EMAIL;
         String value = (String) body.get("value");
         boolean secret = body.get("secret") != null && (Boolean) body.get("secret");
         String environment = (String) body.get("environment");
 
         EnvironmentVariableEntity entity = service.updateVariable(
-                projectId, varId, value, secret, environment, DevUserInitializer.DEV_USER_EMAIL
+                projectId, varId, value, secret, environment, email
         );
 
         auditLogService.log(
@@ -91,15 +97,17 @@ public class EnvironmentVariableController {
     @DeleteMapping("/{varId}")
     public ResponseEntity<Void> deleteVariable(
             @PathVariable UUID projectId,
-            @PathVariable UUID varId
+            @PathVariable UUID varId,
+            Principal principal
     ) {
-        List<EnvironmentVariableEntity> vars = service.getVariablesForProject(projectId, DevUserInitializer.DEV_USER_EMAIL);
+        String email = principal != null ? principal.getName() : DevUserInitializer.DEV_USER_EMAIL;
+        List<EnvironmentVariableEntity> vars = service.getVariablesForProject(projectId, email);
         EnvironmentVariableEntity target = vars.stream()
                 .filter(v -> v.getId().equals(varId))
                 .findFirst()
                 .orElse(null);
 
-        service.deleteVariable(projectId, varId, DevUserInitializer.DEV_USER_EMAIL);
+        service.deleteVariable(projectId, varId, email);
 
         if (target != null) {
             auditLogService.log(

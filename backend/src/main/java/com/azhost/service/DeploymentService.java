@@ -3,7 +3,7 @@ package com.azhost.service;
 import com.azhost.deployment.DeploymentStatus;
 import com.azhost.deployment.DeploymentValidator;
 import com.azhost.deployment.DeploymentManager;
-import com.azhost.build.executor.BuildWorkspaceManager;
+import com.azhost.build.workspace.BuildWorkspaceManager;
 import com.azhost.dto.CreateDeploymentRequest;
 import com.azhost.dto.DeploymentListResponseDto;
 import com.azhost.dto.DeploymentResponseDto;
