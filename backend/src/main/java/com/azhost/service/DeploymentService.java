@@ -72,8 +72,12 @@ public class DeploymentService {
     @Transactional
     public DeploymentResponseDto createDeployment(UUID projectId, CreateDeploymentRequest request, String userEmail) {
         User user = getUser(userEmail);
-        Project project = projectRepository.findByIdAndUserId(projectId, user.getId())
+        Project project = projectRepository.findAndLockById(projectId)
                 .orElseThrow(() -> new ProjectNotFoundException("Project not found with ID: " + projectId));
+
+        if (!project.getUser().getId().equals(user.getId())) {
+            throw new ProjectNotFoundException("Project not found with ID: " + projectId);
+        }
 
         ProjectBuildEntity build = projectBuildRepository.findByIdAndProjectId(request.getBuildId(), projectId)
                 .orElseThrow(() -> new BuildNotFoundException("Build not found with ID: " + request.getBuildId()));
@@ -87,9 +91,13 @@ public class DeploymentService {
             throw new IllegalArgumentException("Artifact validation error: " + e.getMessage(), e);
         }
 
+        project.setDeploymentCounter(project.getDeploymentCounter() + 1);
+        projectRepository.save(project);
+
         deploymentManager.registerActiveDeployment(projectId, UUID.randomUUID());
 
         DeploymentEntity deploymentEntity = new DeploymentEntity(project, build, build.getArtifactId());
+        deploymentEntity.setSequenceNumber(project.getDeploymentCounter());
         DeploymentEntity savedEntity = deploymentRepository.save(deploymentEntity);
         auditLogService.log(user, project, "DEPLOYMENT_CREATED", "Deployment", savedEntity.getId().toString(), "SUCCESS", "Created deployment from build " + build.getId());
 

@@ -40,6 +40,9 @@ public class DeploymentEntity {
     @Column(name = "deployment_url", length = 500)
     private String deploymentUrl;
 
+    @Column(name = "sequence_number", nullable = false)
+    private long sequenceNumber;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private ZonedDateTime createdAt;
@@ -94,4 +97,7 @@ public class DeploymentEntity {
 
     public String getErrorMessage() { return errorMessage; }
     public void setErrorMessage(String errorMessage) { this.errorMessage = errorMessage; }
+
+    public long getSequenceNumber() { return sequenceNumber; }
+    public void setSequenceNumber(long sequenceNumber) { this.sequenceNumber = sequenceNumber; }
 }

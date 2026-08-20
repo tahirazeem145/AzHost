@@ -82,6 +82,9 @@ public class Project {
     @JoinColumn(name = "active_deployment_id")
     private DeploymentEntity activeDeployment;
 
+    @Column(name = "deployment_counter", nullable = false)
+    private long deploymentCounter = 0L;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private ZonedDateTime createdAt;
@@ -264,6 +267,14 @@ public class Project {
 
     public void setEncryptedWebhookSecret(String encryptedWebhookSecret) {
         this.encryptedWebhookSecret = encryptedWebhookSecret;
+    }
+
+    public long getDeploymentCounter() {
+        return deploymentCounter;
+    }
+
+    public void setDeploymentCounter(long deploymentCounter) {
+        this.deploymentCounter = deploymentCounter;
     }
 }
 
