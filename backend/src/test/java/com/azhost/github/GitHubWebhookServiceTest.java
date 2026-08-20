@@ -45,7 +45,8 @@ class GitHubWebhookServiceTest {
         buildDeployService = mock(GitHubBuildDeployService.class);
 
         webhookService = new GitHubWebhookService(
-                signatureVerifier, tokenEncryptor, projectRepository, deliveryRepository, buildDeployService
+                signatureVerifier, tokenEncryptor, projectRepository, deliveryRepository, buildDeployService,
+                mock(com.azhost.service.MetricsService.class)
         );
 
         testUser = new User("developer@azhost.dev", "hash", "Dev");
