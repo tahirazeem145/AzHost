@@ -63,6 +63,9 @@ public class ProductionHardeningConcurrencyIntegrationTest {
     @MockBean
     private BuildExecutor buildExecutor;
 
+    @Autowired
+    private jakarta.persistence.EntityManager entityManager;
+
     private User user;
     private Project projectA;
     private Project projectB;
@@ -100,7 +103,7 @@ public class ProductionHardeningConcurrencyIntegrationTest {
         analysisA.setNodeVersion("20");
         analysisA.setBuildCommand("npm run build");
         analysisA.setOutputDirectory("dist");
-        analysisRepository.saveAndFlush(analysisA);
+        entityManager.persist(analysisA);
 
         ProjectAnalysisEntity analysisB = new ProjectAnalysisEntity(projectB);
         analysisB.setFramework(ProjectFramework.STATIC);
@@ -112,7 +115,7 @@ public class ProductionHardeningConcurrencyIntegrationTest {
         analysisB.setNodeVersion("20");
         analysisB.setBuildCommand("npm run build");
         analysisB.setOutputDirectory("dist");
-        analysisRepository.saveAndFlush(analysisB);
+        entityManager.persist(analysisB);
 
         ProjectAnalysisEntity analysisC = new ProjectAnalysisEntity(projectC);
         analysisC.setFramework(ProjectFramework.STATIC);
@@ -124,7 +127,7 @@ public class ProductionHardeningConcurrencyIntegrationTest {
         analysisC.setNodeVersion("20");
         analysisC.setBuildCommand("npm run build");
         analysisC.setOutputDirectory("dist");
-        analysisRepository.saveAndFlush(analysisC);
+        entityManager.persist(analysisC);
     }
 
     @Test
