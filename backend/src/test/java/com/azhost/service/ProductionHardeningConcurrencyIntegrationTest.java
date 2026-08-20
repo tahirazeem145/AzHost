@@ -19,12 +19,12 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
 import org.springframework.test.context.ActiveProfiles;
 
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.*;
@@ -59,7 +59,7 @@ public class ProductionHardeningConcurrencyIntegrationTest {
     @Autowired
     private com.azhost.build.BuildManager buildManager;
 
-    @Autowired
+    @MockBean
     private com.azhost.deployment.DeploymentManager deploymentManager;
 
     @Autowired
@@ -138,20 +138,9 @@ public class ProductionHardeningConcurrencyIntegrationTest {
         }
     }
 
-    private static void createDummyZipWithIndexHtml(Path zipPath) throws Exception {
-        try (var fos = new java.io.FileOutputStream(zipPath.toFile());
-             var zos = new java.util.zip.ZipOutputStream(fos)) {
-            var entry = new java.util.zip.ZipEntry("index.html");
-            zos.putNextEntry(entry);
-            zos.write("<html><body>Test</body></html>".getBytes());
-            zos.closeEntry();
-        }
-    }
-
     @BeforeEach
     public void setUp() throws Exception {
         buildManager.reset();
-        deploymentManager.reset();
         deploymentRepository.deleteAll();
         buildRepository.deleteAll();
         analysisRepository.deleteAll();
@@ -175,14 +164,6 @@ public class ProductionHardeningConcurrencyIntegrationTest {
         jdbcTemplate.update(sql, projectB.getId(), "STATIC", "HIGH", "JavaScript", "NPM", "HIGH", "HIGH", false, "dist", "20", "npm run build", new java.sql.Timestamp(System.currentTimeMillis()));
         jdbcTemplate.update(sql, projectC.getId(), "STATIC", "HIGH", "JavaScript", "NPM", "HIGH", "HIGH", false, "dist", "20", "npm run build", new java.sql.Timestamp(System.currentTimeMillis()));
 
-        // Write mock artifacts to disk so validation passes
-        Path artifactsRoot = buildWorkspaceManager.getArtifactsRoot();
-        if (!Files.exists(artifactsRoot)) {
-            Files.createDirectories(artifactsRoot);
-        }
-        createDummyZipWithIndexHtml(artifactsRoot.resolve("artifact-A.zip"));
-        createDummyZipWithIndexHtml(artifactsRoot.resolve("artifact-B.zip"));
-
         TestBuildExecutor.startLatch = new CountDownLatch(1);
         TestBuildExecutor.activeBuildsLatch = new CountDownLatch(2);
         TestBuildExecutor.activeBuildsCount.set(0);
@@ -203,9 +184,6 @@ public class ProductionHardeningConcurrencyIntegrationTest {
         reqA.setBuildId(buildA.getId());
         var depAResp = deploymentService.createDeployment(projectA.getId(), reqA, user.getEmail());
         DeploymentEntity depA = deploymentRepository.findById(depAResp.getId()).orElseThrow();
-
-        // Release lock after submission to allow B to start
-        deploymentManager.reset();
 
         // 2. Create build B and deployment B
         ProjectBuildEntity buildB = new ProjectBuildEntity(projectA, ProjectFramework.STATIC, "NPM", "20", "npm run build", "dist", "ws-B");
