@@ -103,6 +103,7 @@ public class ProductionHardeningConcurrencyIntegrationTest {
         // 1. Create build A and deployment A
         ProjectBuildEntity buildA = new ProjectBuildEntity(projectA, ProjectFramework.STATIC, "NPM", "20", "npm run build", "dist", "ws-A");
         buildA.setStatus(BuildStatus.SUCCESS);
+        buildA.setArtifactId("artifact-A");
         buildA = buildRepository.save(buildA);
         
         CreateDeploymentRequest reqA = new CreateDeploymentRequest();
@@ -113,6 +114,7 @@ public class ProductionHardeningConcurrencyIntegrationTest {
         // 2. Create build B and deployment B
         ProjectBuildEntity buildB = new ProjectBuildEntity(projectA, ProjectFramework.STATIC, "NPM", "20", "npm run build", "dist", "ws-B");
         buildB.setStatus(BuildStatus.SUCCESS);
+        buildB.setArtifactId("artifact-B");
         buildB = buildRepository.save(buildB);
         
         CreateDeploymentRequest reqB = new CreateDeploymentRequest();
