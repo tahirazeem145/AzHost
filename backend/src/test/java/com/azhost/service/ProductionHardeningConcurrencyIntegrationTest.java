@@ -69,6 +69,7 @@ public class ProductionHardeningConcurrencyIntegrationTest {
     private Project projectC;
 
     @BeforeEach
+    @Transactional
     public void setUp() {
         buildManager.reset();
         deploymentRepository.deleteAll();
