@@ -35,13 +35,19 @@ public class ProjectController {
     @GetMapping
     public ResponseEntity<ProjectListResponseDto> getProjects(
             @RequestParam(required = false) String search,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size,
             Principal principal
     ) {
         String email = principal != null ? principal.getName() : DevUserInitializer.DEV_USER_EMAIL;
-        int limitSize = Math.min(size, 100);
-        ProjectListResponseDto response = projectService.getProjects(email, search, page, limitSize);
+        if (page == null && size == null) {
+            ProjectListResponseDto response = projectService.getProjects(email, search);
+            return ResponseEntity.ok(response);
+        }
+        int p = page != null ? page : 0;
+        int s = size != null ? size : 10;
+        int limitSize = Math.min(s, 100);
+        ProjectListResponseDto response = projectService.getProjects(email, search, p, limitSize);
         return ResponseEntity.ok(response);
     }
 

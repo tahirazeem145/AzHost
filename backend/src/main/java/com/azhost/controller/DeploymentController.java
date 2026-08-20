@@ -37,13 +37,19 @@ public class DeploymentController {
     @GetMapping
     public ResponseEntity<DeploymentListResponseDto> getDeployments(
             @PathVariable UUID projectId,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size,
             Principal principal
     ) {
         String email = principal != null ? principal.getName() : DevUserInitializer.DEV_USER_EMAIL;
-        int limitSize = Math.min(size, 100);
-        DeploymentListResponseDto response = deploymentService.getDeploymentsForProject(projectId, email, page, limitSize);
+        if (page == null && size == null) {
+            DeploymentListResponseDto response = deploymentService.getDeploymentsForProject(projectId, email);
+            return ResponseEntity.ok(response);
+        }
+        int p = page != null ? page : 0;
+        int s = size != null ? size : 10;
+        int limitSize = Math.min(s, 100);
+        DeploymentListResponseDto response = deploymentService.getDeploymentsForProject(projectId, email, p, limitSize);
         return ResponseEntity.ok(response);
     }
 

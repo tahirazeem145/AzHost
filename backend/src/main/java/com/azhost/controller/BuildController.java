@@ -32,13 +32,19 @@ public class BuildController {
     @GetMapping
     public ResponseEntity<List<BuildResponseDto>> getBuilds(
             @PathVariable UUID projectId,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size,
             Principal principal
     ) {
         String email = principal != null ? principal.getName() : DevUserInitializer.DEV_USER_EMAIL;
-        int limitSize = Math.min(size, 100);
-        List<BuildResponseDto> response = buildService.getBuildsForProject(projectId, email, page, limitSize);
+        if (page == null && size == null) {
+            List<BuildResponseDto> response = buildService.getBuildsForProject(projectId, email);
+            return ResponseEntity.ok(response);
+        }
+        int p = page != null ? page : 0;
+        int s = size != null ? size : 10;
+        int limitSize = Math.min(s, 100);
+        List<BuildResponseDto> response = buildService.getBuildsForProject(projectId, email, p, limitSize);
         return ResponseEntity.ok(response);
     }
 

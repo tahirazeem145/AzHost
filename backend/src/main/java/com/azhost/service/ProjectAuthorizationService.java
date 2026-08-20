@@ -8,6 +8,7 @@ import com.azhost.repository.ProjectMemberRepository;
 import com.azhost.repository.ProjectRepository;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
@@ -28,6 +29,7 @@ public class ProjectAuthorizationService {
         this.metricsService = metricsService;
     }
 
+    @Transactional(readOnly = true)
     public Project verifyAccess(UUID projectId, String userEmail, ProjectRole minimumRole) {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new ProjectNotFoundException("Project not found"));
@@ -41,6 +43,7 @@ public class ProjectAuthorizationService {
         return project;
     }
 
+    @Transactional(readOnly = true)
     public ProjectRole getRoleForUser(Project project, String userEmail) {
         if (project.getUser() != null && userEmail.equalsIgnoreCase(project.getUser().getEmail())) {
             return ProjectRole.OWNER;
