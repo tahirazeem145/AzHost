@@ -60,6 +60,9 @@ public class ProductionHardeningConcurrencyIntegrationTest {
     private com.azhost.build.BuildManager buildManager;
 
     @Autowired
+    private com.azhost.deployment.DeploymentManager deploymentManager;
+
+    @Autowired
     private AzHostBuildProperties buildProperties;
 
     @Autowired
@@ -126,9 +129,20 @@ public class ProductionHardeningConcurrencyIntegrationTest {
         }
     }
 
+    private static void createDummyZipWithIndexHtml(Path zipPath) throws Exception {
+        try (var fos = new java.io.FileOutputStream(zipPath.toFile());
+             var zos = new java.util.zip.ZipOutputStream(fos)) {
+            var entry = new java.util.zip.ZipEntry("index.html");
+            zos.putNextEntry(entry);
+            zos.write("<html><body>Test</body></html>".getBytes());
+            zos.closeEntry();
+        }
+    }
+
     @BeforeEach
     public void setUp() throws Exception {
         buildManager.reset();
+        deploymentManager.reset();
         deploymentRepository.deleteAll();
         buildRepository.deleteAll();
         analysisRepository.deleteAll();
@@ -157,8 +171,8 @@ public class ProductionHardeningConcurrencyIntegrationTest {
         if (!Files.exists(artifactsRoot)) {
             Files.createDirectories(artifactsRoot);
         }
-        Files.write(artifactsRoot.resolve("artifact-A.zip"), new byte[] {0x50, 0x4B, 0x05, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}); // valid empty zip bytes
-        Files.write(artifactsRoot.resolve("artifact-B.zip"), new byte[] {0x50, 0x4B, 0x05, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00});
+        createDummyZipWithIndexHtml(artifactsRoot.resolve("artifact-A.zip"));
+        createDummyZipWithIndexHtml(artifactsRoot.resolve("artifact-B.zip"));
 
         TestBuildExecutor.startLatch = new CountDownLatch(1);
         TestBuildExecutor.activeBuildsLatch = new CountDownLatch(2);
@@ -180,6 +194,9 @@ public class ProductionHardeningConcurrencyIntegrationTest {
         reqA.setBuildId(buildA.getId());
         var depAResp = deploymentService.createDeployment(projectA.getId(), reqA, user.getEmail());
         DeploymentEntity depA = deploymentRepository.findById(depAResp.getId()).orElseThrow();
+
+        // Release lock after submission to allow B to start
+        deploymentManager.reset();
 
         // 2. Create build B and deployment B
         ProjectBuildEntity buildB = new ProjectBuildEntity(projectA, ProjectFramework.STATIC, "NPM", "20", "npm run build", "dist", "ws-B");
