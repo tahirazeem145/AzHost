@@ -5,6 +5,7 @@ import com.azhost.entity.User;
 import com.azhost.repository.UserRepository;
 import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.context.ApplicationContext;
 import org.springframework.core.env.Environment;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -21,11 +22,11 @@ import java.util.Optional;
 public class TenantAuthenticationFilter implements Filter {
 
     private final Environment environment;
-    private final UserRepository userRepository;
+    private final ApplicationContext applicationContext;
 
-    public TenantAuthenticationFilter(Environment environment, UserRepository userRepository) {
+    public TenantAuthenticationFilter(Environment environment, ApplicationContext applicationContext) {
         this.environment = environment;
-        this.userRepository = userRepository;
+        this.applicationContext = applicationContext;
     }
 
     @Override
@@ -43,25 +44,32 @@ public class TenantAuthenticationFilter implements Filter {
             // Extract X-User-Email header
             String xUserEmail = httpRequest.getHeader("X-User-Email");
 
-            if (!isProd && xUserEmail != null && !xUserEmail.trim().isEmpty()) {
-                // If dev/test and X-User-Email header is present, authenticate as that user
-                Optional<User> userOpt = userRepository.findByEmail(xUserEmail);
-                if (userOpt.isPresent()) {
-                    User user = userOpt.get();
-                    UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
-                            user.getEmail(), null, Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
-                    );
-                    SecurityContextHolder.getContext().setAuthentication(auth);
-                }
-            } else if (!isProd && SecurityContextHolder.getContext().getAuthentication() == null) {
-                // If dev/test and no authentication is currently set, fall back to developer@azhost.dev
-                Optional<User> userOpt = userRepository.findByEmail(DevUserInitializer.DEV_USER_EMAIL);
-                if (userOpt.isPresent()) {
-                    User user = userOpt.get();
-                    UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
-                            user.getEmail(), null, Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
-                    );
-                    SecurityContextHolder.getContext().setAuthentication(auth);
+            UserRepository userRepository = null;
+            try {
+                userRepository = applicationContext.getBean(UserRepository.class);
+            } catch (Exception e) {
+                // Fallback when UserRepository is not present in WebMvc slice context
+            }
+
+            if (userRepository != null) {
+                if (!isProd && xUserEmail != null && !xUserEmail.trim().isEmpty()) {
+                    Optional<User> userOpt = userRepository.findByEmail(xUserEmail);
+                    if (userOpt.isPresent()) {
+                        User user = userOpt.get();
+                        UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                                user.getEmail(), null, Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
+                        );
+                        SecurityContextHolder.getContext().setAuthentication(auth);
+                    }
+                } else if (!isProd && SecurityContextHolder.getContext().getAuthentication() == null) {
+                    Optional<User> userOpt = userRepository.findByEmail(DevUserInitializer.DEV_USER_EMAIL);
+                    if (userOpt.isPresent()) {
+                        User user = userOpt.get();
+                        UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                                user.getEmail(), null, Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
+                        );
+                        SecurityContextHolder.getContext().setAuthentication(auth);
+                    }
                 }
             }
         }
