@@ -32,8 +32,7 @@ public interface ProjectRepository extends JpaRepository<Project, UUID> {
      */
     List<Project> findAllByGithubRepositoryId(Long githubRepositoryId);
 
-    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT p FROM Project p WHERE p.id = :id")
+    @Query(value = "SELECT * FROM projects WHERE id = :id FOR UPDATE", nativeQuery = true)
     Optional<Project> findAndLockById(@Param("id") UUID id);
 }
 

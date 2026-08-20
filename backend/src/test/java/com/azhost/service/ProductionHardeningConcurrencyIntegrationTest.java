@@ -66,11 +66,13 @@ public class ProductionHardeningConcurrencyIntegrationTest {
 
     @BeforeEach
     public void setUp() {
-        user = userRepository.findByEmail("test-concurrency@azhost.dev").orElse(null);
-        if (user == null) {
-            user = new User("test-concurrency@azhost.dev", "hash", "Concurrency User");
-            user = userRepository.save(user);
-        }
+        deploymentRepository.deleteAll();
+        buildRepository.deleteAll();
+        projectRepository.deleteAll();
+        userRepository.deleteAll();
+
+        user = new User("test-concurrency@azhost.dev", "hash", "Concurrency User");
+        user = userRepository.save(user);
 
         projectA = new Project(user, "ProjectA", "project-a", "desc", ProjectFramework.STATIC, ProjectSourceType.GITHUB, "http://github.com", "main");
         projectA = projectRepository.save(projectA);
