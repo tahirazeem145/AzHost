@@ -21,6 +21,19 @@ public class GlobalExceptionHandler {
         this.environment = environment;
     }
 
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ResponseEntity<ErrorResponseDto> handleAccessDenied(org.springframework.security.access.AccessDeniedException ex, HttpServletRequest request) {
+        logger.warn("Access denied on path {}: {}", request.getRequestURI(), ex.getMessage());
+        ErrorResponseDto error = new ErrorResponseDto(
+                LocalDateTime.now(),
+                HttpStatus.FORBIDDEN.value(),
+                "FORBIDDEN",
+                ex.getMessage(),
+                request.getRequestURI()
+        );
+        return new ResponseEntity<>(error, HttpStatus.FORBIDDEN);
+    }
+
     @ExceptionHandler(ProjectNotFoundException.class)
     public ResponseEntity<ErrorResponseDto> handleProjectNotFound(ProjectNotFoundException ex, HttpServletRequest request) {
         logger.warn("Project not found: {}", ex.getMessage());

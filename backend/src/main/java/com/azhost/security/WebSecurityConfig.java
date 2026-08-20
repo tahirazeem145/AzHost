@@ -7,11 +7,19 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 @EnableWebSecurity
 public class WebSecurityConfig {
+
+    private final TenantAuthenticationFilter tenantAuthenticationFilter;
+
+    public WebSecurityConfig(TenantAuthenticationFilter tenantAuthenticationFilter) {
+        this.tenantAuthenticationFilter = tenantAuthenticationFilter;
+    }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -27,6 +35,8 @@ public class WebSecurityConfig {
                 .httpStrictTransportSecurity(hsts -> hsts.includeSubDomains(true).maxAgeInSeconds(31536000))
             )
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .addFilterBefore(tenantAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+            .httpBasic(Customizer.withDefaults())
             .authorizeHttpRequests(auth -> auth
                 // Health and info endpoints
                 .requestMatchers("/api/health", "/api/info").permitAll()
@@ -42,5 +52,22 @@ public class WebSecurityConfig {
             );
 
         return http.build();
+    }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new PasswordEncoder() {
+            @Override
+            public String encode(CharSequence rawPassword) {
+                return rawPassword.toString();
+            }
+
+            @Override
+            public boolean matches(CharSequence rawPassword, String encodedPassword) {
+                if (encodedPassword == null) return false;
+                return rawPassword.toString().equals(encodedPassword) || 
+                       new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder().matches(rawPassword, encodedPassword);
+            }
+        };
     }
 }

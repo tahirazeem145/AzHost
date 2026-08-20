@@ -44,7 +44,12 @@ public class AuditLogEntity {
     @Column(columnDefinition = "TEXT")
     private String metadata;
 
-    public AuditLogEntity() {}
+    @Column(name = "request_id", length = 255)
+    private String requestId;
+
+    public AuditLogEntity() {
+        this.requestId = org.slf4j.MDC.get("requestId");
+    }
 
     public AuditLogEntity(User user, Project project, String action, String resourceType, String resourceId, String result, String metadata) {
         this.user = user;
@@ -54,6 +59,15 @@ public class AuditLogEntity {
         this.resourceId = resourceId;
         this.result = result;
         this.metadata = metadata;
+        this.requestId = org.slf4j.MDC.get("requestId");
+    }
+
+    public String getRequestId() {
+        return requestId;
+    }
+
+    public void setRequestId(String requestId) {
+        this.requestId = requestId;
     }
 
     public UUID getId() {
