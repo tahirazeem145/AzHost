@@ -88,13 +88,40 @@ public class ProductionHardeningConcurrencyIntegrationTest {
         projectC = new Project(user, "ProjectC", "project-c", "desc", ProjectFramework.STATIC, ProjectSourceType.GITHUB, "http://github.com", "main");
         projectC = projectRepository.save(projectC);
 
-        ProjectAnalysisEntity analysisA = new ProjectAnalysisEntity(projectA, ProjectFramework.STATIC, "NPM", "20", "npm run build", "dist");
+        ProjectAnalysisEntity analysisA = new ProjectAnalysisEntity(projectA);
+        analysisA.setFramework(ProjectFramework.STATIC);
+        analysisA.setFrameworkConfidence(com.azhost.analysis.DetectionConfidence.HIGH);
+        analysisA.setLanguage("JavaScript");
+        analysisA.setConfidence(com.azhost.analysis.DetectionConfidence.HIGH);
+        analysisA.setPackageManager("NPM");
+        analysisA.setPackageManagerConfidence(com.azhost.analysis.DetectionConfidence.HIGH);
+        analysisA.setNodeVersion("20");
+        analysisA.setBuildCommand("npm run build");
+        analysisA.setOutputDirectory("dist");
         analysisRepository.save(analysisA);
 
-        ProjectAnalysisEntity analysisB = new ProjectAnalysisEntity(projectB, ProjectFramework.STATIC, "NPM", "20", "npm run build", "dist");
+        ProjectAnalysisEntity analysisB = new ProjectAnalysisEntity(projectB);
+        analysisB.setFramework(ProjectFramework.STATIC);
+        analysisB.setFrameworkConfidence(com.azhost.analysis.DetectionConfidence.HIGH);
+        analysisB.setLanguage("JavaScript");
+        analysisB.setConfidence(com.azhost.analysis.DetectionConfidence.HIGH);
+        analysisB.setPackageManager("NPM");
+        analysisB.setPackageManagerConfidence(com.azhost.analysis.DetectionConfidence.HIGH);
+        analysisB.setNodeVersion("20");
+        analysisB.setBuildCommand("npm run build");
+        analysisB.setOutputDirectory("dist");
         analysisRepository.save(analysisB);
 
-        ProjectAnalysisEntity analysisC = new ProjectAnalysisEntity(projectC, ProjectFramework.STATIC, "NPM", "20", "npm run build", "dist");
+        ProjectAnalysisEntity analysisC = new ProjectAnalysisEntity(projectC);
+        analysisC.setFramework(ProjectFramework.STATIC);
+        analysisC.setFrameworkConfidence(com.azhost.analysis.DetectionConfidence.HIGH);
+        analysisC.setLanguage("JavaScript");
+        analysisC.setConfidence(com.azhost.analysis.DetectionConfidence.HIGH);
+        analysisC.setPackageManager("NPM");
+        analysisC.setPackageManagerConfidence(com.azhost.analysis.DetectionConfidence.HIGH);
+        analysisC.setNodeVersion("20");
+        analysisC.setBuildCommand("npm run build");
+        analysisC.setOutputDirectory("dist");
         analysisRepository.save(analysisC);
     }
 
