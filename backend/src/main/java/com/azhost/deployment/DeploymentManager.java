@@ -59,6 +59,10 @@ public class DeploymentManager {
         activeProjectDeployments.remove(projectId);
     }
 
+    public synchronized void reset() {
+        activeProjectDeployments.clear();
+    }
+
     public boolean isDeploymentInProgressForProject(UUID projectId) {
         return activeProjectDeployments.containsKey(projectId);
     }
