@@ -44,14 +44,14 @@ public interface ProjectBuildRepository extends JpaRepository<ProjectBuildEntity
     @Query("SELECT b.id FROM ProjectBuildEntity b WHERE b.status = com.azhost.build.BuildStatus.QUEUED AND NOT EXISTS (SELECT 1 FROM ProjectBuildEntity b2 WHERE b2.project.id = b.project.id AND b2.status IN (com.azhost.build.BuildStatus.PREPARING, com.azhost.build.BuildStatus.INSTALLING, com.azhost.build.BuildStatus.BUILDING)) ORDER BY b.createdAt ASC")
     List<UUID> findNextClaimableBuildIds(org.springframework.data.domain.Pageable pageable);
 
-    @Modifying
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE ProjectBuildEntity b SET b.status = com.azhost.build.BuildStatus.PREPARING, b.claimedBy = :workerId, b.claimedAt = :now, b.heartbeatAt = :now, b.startedAt = :now WHERE b.id = :buildId AND b.status = com.azhost.build.BuildStatus.QUEUED")
     int claimBuild(@Param("buildId") UUID buildId, @Param("workerId") String workerId, @Param("now") ZonedDateTime now);
 
     @Query("SELECT b FROM ProjectBuildEntity b WHERE b.status IN (com.azhost.build.BuildStatus.PREPARING, com.azhost.build.BuildStatus.INSTALLING, com.azhost.build.BuildStatus.BUILDING) AND b.heartbeatAt < :threshold")
     List<ProjectBuildEntity> findStaleClaimedBuilds(@Param("threshold") ZonedDateTime threshold);
 
-    @Modifying
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE ProjectBuildEntity b SET b.heartbeatAt = :now WHERE b.id = :id")
     int updateHeartbeat(@Param("id") UUID id, @Param("now") ZonedDateTime now);
 
