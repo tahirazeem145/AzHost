@@ -41,7 +41,7 @@ public interface ProjectBuildRepository extends JpaRepository<ProjectBuildEntity
     @Query("SELECT COUNT(b) FROM ProjectBuildEntity b WHERE b.project.user.id = :userId AND b.status IN (com.azhost.build.BuildStatus.PREPARING, com.azhost.build.BuildStatus.INSTALLING, com.azhost.build.BuildStatus.BUILDING)")
     long countActiveBuildsForUser(@Param("userId") UUID userId);
 
-    @Query("SELECT b.id FROM ProjectBuildEntity b WHERE b.status = com.azhost.build.BuildStatus.QUEUED AND NOT EXISTS (SELECT 1 FROM ProjectBuildEntity b2 WHERE b2.project.id = b.project.id AND b2.status IN (com.azhost.build.BuildStatus.PREPARING, com.azhost.build.BuildStatus.INSTALLING, com.azhost.build.BuildStatus.BUILDING)) ORDER BY b.createdAt ASC")
+    @Query("SELECT b.id FROM ProjectBuildEntity b WHERE b.status = com.azhost.build.BuildStatus.QUEUED AND b.claimedBy IS NULL AND NOT EXISTS (SELECT 1 FROM ProjectBuildEntity b2 WHERE b2.project.id = b.project.id AND b2.status IN (com.azhost.build.BuildStatus.PREPARING, com.azhost.build.BuildStatus.INSTALLING, com.azhost.build.BuildStatus.BUILDING)) ORDER BY b.createdAt ASC")
     List<UUID> findNextClaimableBuildIds(org.springframework.data.domain.Pageable pageable);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
