@@ -249,11 +249,11 @@ public class ProductionHardeningConcurrencyIntegrationTest {
         // B3 -> Project C
         // B4 -> Project A
         // B5 -> Project B
-        ProjectBuildEntity b1 = buildRepository.save(new ProjectBuildEntity(projectA, ProjectFramework.STATIC, "NPM", "20", "npm run build", "dist", "ws-1"));
-        ProjectBuildEntity b2 = buildRepository.save(new ProjectBuildEntity(projectB, ProjectFramework.STATIC, "NPM", "20", "npm run build", "dist", "ws-2"));
-        ProjectBuildEntity b3 = buildRepository.save(new ProjectBuildEntity(projectC, ProjectFramework.STATIC, "NPM", "20", "npm run build", "dist", "ws-3"));
-        ProjectBuildEntity b4 = buildRepository.save(new ProjectBuildEntity(projectA, ProjectFramework.STATIC, "NPM", "20", "npm run build", "dist", "ws-4"));
-        ProjectBuildEntity b5 = buildRepository.save(new ProjectBuildEntity(projectB, ProjectFramework.STATIC, "NPM", "20", "npm run build", "dist", "ws-5"));
+        ProjectBuildEntity b1 = new ProjectBuildEntity(projectA, ProjectFramework.STATIC, "NPM", "20", "npm run build", "dist", "ws-1");
+        ProjectBuildEntity b2 = new ProjectBuildEntity(projectB, ProjectFramework.STATIC, "NPM", "20", "npm run build", "dist", "ws-2");
+        ProjectBuildEntity b3 = new ProjectBuildEntity(projectC, ProjectFramework.STATIC, "NPM", "20", "npm run build", "dist", "ws-3");
+        ProjectBuildEntity b4 = new ProjectBuildEntity(projectA, ProjectFramework.STATIC, "NPM", "20", "npm run build", "dist", "ws-4");
+        ProjectBuildEntity b5 = new ProjectBuildEntity(projectB, ProjectFramework.STATIC, "NPM", "20", "npm run build", "dist", "ws-5");
 
         buildManager.submitBuildTask(b1, projectA, Path.of("/tmp/ws-1"));
         buildManager.submitBuildTask(b2, projectB, Path.of("/tmp/ws-2"));
