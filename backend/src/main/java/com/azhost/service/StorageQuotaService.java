@@ -2,20 +2,20 @@ package com.azhost.service;
 
 import com.azhost.config.AzHostBuildProperties;
 import com.azhost.build.workspace.BuildWorkspaceManager;
+import com.azhost.entity.Project;
 import com.azhost.entity.ProjectBuildEntity;
 import com.azhost.repository.ProjectBuildRepository;
+import com.azhost.repository.ProjectRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
 
 @Service
 public class StorageQuotaService {
@@ -25,22 +25,29 @@ public class StorageQuotaService {
     private final AzHostBuildProperties buildProperties;
     private final BuildWorkspaceManager workspaceManager;
     private final ProjectBuildRepository buildRepository;
-
-    private final Map<UUID, AtomicLong> reservedBytes = new ConcurrentHashMap<>();
+    private final ProjectRepository projectRepository;
 
     public StorageQuotaService(
             AzHostBuildProperties buildProperties,
             BuildWorkspaceManager workspaceManager,
-            ProjectBuildRepository buildRepository
+            ProjectBuildRepository buildRepository,
+            ProjectRepository projectRepository
     ) {
         this.buildProperties = buildProperties;
         this.workspaceManager = workspaceManager;
         this.buildRepository = buildRepository;
+        this.projectRepository = projectRepository;
     }
 
-    public synchronized boolean reserveSpace(UUID projectId, long expectedBytes) {
+    @Transactional
+    public boolean reserveSpace(UUID projectId, long expectedBytes) {
+        Project project = projectRepository.findAndLockById(projectId).orElse(null);
+        if (project == null) {
+            return false;
+        }
+
         long currentUsage = getProjectStorageUsage(projectId);
-        long reserved = reservedBytes.computeIfAbsent(projectId, k -> new AtomicLong(0)).get();
+        long reserved = project.getReservedStorageBytes();
         long maxAllowed = buildProperties.getLimits().getPerProject().getMaxArtifactStorageBytes();
 
         if (currentUsage + reserved + expectedBytes > maxAllowed) {
@@ -49,21 +56,23 @@ public class StorageQuotaService {
             return false;
         }
 
-        reservedBytes.get(projectId).addAndGet(expectedBytes);
+        project.setReservedStorageBytes(reserved + expectedBytes);
+        projectRepository.save(project);
         logger.info("[QUOTA] Reserved {} bytes for project {}. Total reserved: {} bytes",
-                expectedBytes, projectId, reservedBytes.get(projectId).get());
+                expectedBytes, projectId, project.getReservedStorageBytes());
         return true;
     }
 
-    public synchronized void releaseReservation(UUID projectId, long expectedBytes) {
-        AtomicLong reserved = reservedBytes.get(projectId);
-        if (reserved != null) {
-            long remaining = reserved.addAndGet(-expectedBytes);
-            if (remaining <= 0) {
-                reservedBytes.remove(projectId);
-            }
+    @Transactional
+    public void releaseReservation(UUID projectId, long expectedBytes) {
+        Project project = projectRepository.findAndLockById(projectId).orElse(null);
+        if (project != null) {
+            long currentReserved = project.getReservedStorageBytes();
+            long newReserved = Math.max(0, currentReserved - expectedBytes);
+            project.setReservedStorageBytes(newReserved);
+            projectRepository.save(project);
             logger.info("[QUOTA] Released {} bytes reservation for project {}. Remaining reserved: {} bytes",
-                    expectedBytes, projectId, remaining);
+                    expectedBytes, projectId, newReserved);
         }
     }
 

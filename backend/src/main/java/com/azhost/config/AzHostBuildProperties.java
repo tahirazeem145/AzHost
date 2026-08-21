@@ -210,4 +210,43 @@ public class AzHostBuildProperties {
             }
         }
     }
+
+    public static class Worker {
+        private String id;
+        private long pollIntervalMs = 2000;
+        private long heartbeatIntervalMs = 5000;
+        private long heartbeatTimeoutMs = 30000;
+
+        public String getId() {
+            return id;
+        }
+
+        public void setId(String id) {
+            this.id = id;
+        }
+
+        public long getPollIntervalMs() {
+            return pollIntervalMs;
+        }
+
+        public void setPollIntervalMs(long pollIntervalMs) {
+            this.pollIntervalMs = pollIntervalMs;
+        }
+
+        public long getHeartbeatIntervalMs() {
+            return heartbeatIntervalMs;
+        }
+
+        public void setHeartbeatIntervalMs(long heartbeatIntervalMs) {
+            this.heartbeatIntervalMs = heartbeatIntervalMs;
+        }
+
+        public long getHeartbeatTimeoutMs() {
+            return heartbeatTimeoutMs;
+        }
+
+        public void setHeartbeatTimeoutMs(long heartbeatTimeoutMs) {
+            this.heartbeatTimeoutMs = heartbeatTimeoutMs;
+        }
+    }
 }

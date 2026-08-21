@@ -74,3 +74,9 @@ azhost:
   rate-limit:
     enabled: ${AZHOST_RATE_LIMIT_ENABLED:true}
     requests-per-minute: ${AZHOST_RATE_LIMIT_RPM:60}
+  worker:
+    id: ${AZHOST_WORKER_ID:}
+    poll-interval-ms: ${AZHOST_WORKER_POLL_MS:2000}
+    heartbeat-interval-ms: ${AZHOST_WORKER_HEARTBEAT_MS:5000}
+    heartbeat-timeout-ms: ${AZHOST_WORKER_HEARTBEAT_TIMEOUT_MS:30000}
+
