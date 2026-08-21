@@ -9,6 +9,7 @@ public class AzHostBuildProperties {
     private final Deployment deployment = new Deployment();
     private final RateLimit rateLimit = new RateLimit();
     private final Limits limits = new Limits();
+    private final Worker worker = new Worker();
 
     public Build getBuild() {
         return build;
@@ -24,6 +25,10 @@ public class AzHostBuildProperties {
 
     public Limits getLimits() {
         return limits;
+    }
+
+    public Worker getWorker() {
+        return worker;
     }
 
     public static class Build {
