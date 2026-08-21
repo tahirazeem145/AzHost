@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
+import java.time.ZonedDateTime;
 import java.util.Map;
 
 @Service
@@ -61,6 +62,9 @@ public class GitHubOAuthService {
     public String generateConnectUrl(String userEmail) {
         User user = getUser(userEmail);
         String state = stateService.generateState(user.getId());
+        if ("dummy-github-client-id".equals(clientId) || clientId == null || clientId.isBlank()) {
+            return String.format("/api/github/callback?code=mock_dev_code&state=%s", state);
+        }
         return String.format("%s/authorize?client_id=%s&redirect_uri=%s&scope=repo,user:email&state=%s",
                 oauthUrl, clientId, redirectUri, state);
     }
@@ -75,6 +79,31 @@ public class GitHubOAuthService {
 
         if (code == null || code.isBlank()) {
             throw new GitHubAuthenticationException("Authorization code was not provided by GitHub callback.");
+        }
+
+        if ("mock_dev_code".equals(code) || "dummy-github-client-id".equals(clientId)) {
+            String mockToken = "gho_mock_dev_token_1234567890";
+            String encryptedToken = tokenEncryptor.encrypt(mockToken);
+
+            GitHubConnectionEntity connection = connectionRepository.findByUserId(user.getId())
+                    .orElseGet(() -> new GitHubConnectionEntity(user, "dev-developer", 123456L, encryptedToken, "repo,user:email"));
+
+            connection.setGithubUsername("dev-developer");
+            connection.setGithubUserId(123456L);
+            connection.setEncryptedAccessToken(encryptedToken);
+            connection.setAvatarUrl("https://avatars.githubusercontent.com/u/583231?v=4");
+            connection.setScope("repo,user:email");
+            connection.setUpdatedAt(ZonedDateTime.now());
+
+            connection = connectionRepository.save(connection);
+
+            return new GitHubConnectionResponseDto(
+                    true,
+                    connection.getGithubUsername(),
+                    connection.getAvatarUrl(),
+                    connection.getConnectedAt() != null ? connection.getConnectedAt().toString() : ZonedDateTime.now().toString(),
+                    connection.getScope()
+            );
         }
 
         // Exchange code for OAuth access token
