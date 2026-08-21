@@ -85,6 +85,9 @@ public class Project {
     @Column(name = "deployment_counter", nullable = false)
     private long deploymentCounter = 0L;
 
+    @Column(name = "reserved_storage_bytes", nullable = false)
+    private long reservedStorageBytes = 0L;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private ZonedDateTime createdAt;
@@ -275,6 +278,14 @@ public class Project {
 
     public void setDeploymentCounter(long deploymentCounter) {
         this.deploymentCounter = deploymentCounter;
+    }
+
+    public long getReservedStorageBytes() {
+        return reservedStorageBytes;
+    }
+
+    public void setReservedStorageBytes(long reservedStorageBytes) {
+        this.reservedStorageBytes = reservedStorageBytes;
     }
 }
 

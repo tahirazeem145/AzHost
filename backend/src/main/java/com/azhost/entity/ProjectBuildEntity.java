@@ -70,6 +70,15 @@ public class ProjectBuildEntity {
     private ZonedDateTime startedAt;
 
 
+    @Column(name = "claimed_by")
+    private String claimedBy;
+
+    @Column(name = "claimed_at")
+    private ZonedDateTime claimedAt;
+
+    @Column(name = "heartbeat_at")
+    private ZonedDateTime heartbeatAt;
+
     @Column(name = "completed_at")
     private ZonedDateTime completedAt;
 
@@ -249,6 +258,30 @@ public class ProjectBuildEntity {
 
     public void setDockerContainerId(String dockerContainerId) {
         this.dockerContainerId = dockerContainerId;
+    }
+
+    public String getClaimedBy() {
+        return claimedBy;
+    }
+
+    public void setClaimedBy(String claimedBy) {
+        this.claimedBy = claimedBy;
+    }
+
+    public ZonedDateTime getClaimedAt() {
+        return claimedAt;
+    }
+
+    public void setClaimedAt(ZonedDateTime claimedAt) {
+        this.claimedAt = claimedAt;
+    }
+
+    public ZonedDateTime getHeartbeatAt() {
+        return heartbeatAt;
+    }
+
+    public void setHeartbeatAt(ZonedDateTime heartbeatAt) {
+        this.heartbeatAt = heartbeatAt;
     }
 
     public ZonedDateTime getCreatedAt() {
