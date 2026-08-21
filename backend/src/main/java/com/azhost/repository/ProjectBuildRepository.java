@@ -23,6 +23,9 @@ public interface ProjectBuildRepository extends JpaRepository<ProjectBuildEntity
     @Query("SELECT b FROM ProjectBuildEntity b WHERE b.status = com.azhost.build.BuildStatus.QUEUED ORDER BY b.createdAt ASC")
     List<ProjectBuildEntity> findQueuedBuilds();
 
+    @Query("SELECT b FROM ProjectBuildEntity b JOIN FETCH b.project p JOIN FETCH p.user WHERE b.status = com.azhost.build.BuildStatus.QUEUED ORDER BY b.createdAt ASC")
+    List<ProjectBuildEntity> findQueuedBuildsWithProjectAndUser();
+
     @Query("SELECT COUNT(b) FROM ProjectBuildEntity b WHERE b.status = com.azhost.build.BuildStatus.QUEUED")
     long countQueuedBuilds();
 
