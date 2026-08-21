@@ -18,4 +18,6 @@ public interface DeploymentRepository extends JpaRepository<DeploymentEntity, UU
     Optional<DeploymentEntity> findByIdAndProjectId(UUID id, UUID projectId);
 
     Optional<DeploymentEntity> findFirstByProjectIdAndStatusOrderByCreatedAtDesc(UUID projectId, DeploymentStatus status);
+
+    long countByProjectIdAndStatusNotIn(UUID projectId, java.util.Collection<DeploymentStatus> terminalStatuses);
 }

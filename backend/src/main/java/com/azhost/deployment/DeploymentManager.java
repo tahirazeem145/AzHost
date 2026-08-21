@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 
 import java.nio.file.Path;
 import java.time.ZonedDateTime;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -24,6 +25,11 @@ import java.util.concurrent.Executors;
 public class DeploymentManager {
 
     private static final Logger logger = LoggerFactory.getLogger(DeploymentManager.class);
+    private static final List<DeploymentStatus> TERMINAL_STATUSES = List.of(
+            DeploymentStatus.SUCCESS,
+            DeploymentStatus.FAILED,
+            DeploymentStatus.CANCELLED
+    );
 
     private final DeploymentRepository deploymentRepository;
     private final DeploymentWorkspaceManager workspaceManager;
@@ -56,7 +62,7 @@ public class DeploymentManager {
     }
 
     public synchronized void registerActiveDeployment(UUID projectId, UUID deploymentId) {
-        if (activeProjectDeployments.containsKey(projectId)) {
+        if (activeProjectDeployments.containsKey(projectId) || isDeploymentInProgressInDb(projectId)) {
             throw new DeploymentAlreadyInProgressException("A deployment is already in progress for project ID: " + projectId);
         }
         activeProjectDeployments.put(projectId, deploymentId);
@@ -71,7 +77,11 @@ public class DeploymentManager {
     }
 
     public boolean isDeploymentInProgressForProject(UUID projectId) {
-        return activeProjectDeployments.containsKey(projectId);
+        return activeProjectDeployments.containsKey(projectId) || isDeploymentInProgressInDb(projectId);
+    }
+
+    private boolean isDeploymentInProgressInDb(UUID projectId) {
+        return deploymentRepository.countByProjectIdAndStatusNotIn(projectId, TERMINAL_STATUSES) > 0;
     }
 
     public void submitDeploymentTask(
