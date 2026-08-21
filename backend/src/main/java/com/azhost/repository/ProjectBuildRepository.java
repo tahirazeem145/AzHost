@@ -38,19 +38,8 @@ public interface ProjectBuildRepository extends JpaRepository<ProjectBuildEntity
     @Query("SELECT COUNT(b) FROM ProjectBuildEntity b WHERE b.project.user.id = :userId AND b.status IN (com.azhost.build.BuildStatus.PREPARING, com.azhost.build.BuildStatus.INSTALLING, com.azhost.build.BuildStatus.BUILDING)")
     long countActiveBuildsForUser(@Param("userId") UUID userId);
 
-    @Query(value = """
-        SELECT pb.id FROM project_builds pb
-        WHERE pb.status = 'QUEUED'
-        AND NOT EXISTS (
-            SELECT 1 FROM project_builds pb2 
-            WHERE pb2.project_id = pb.project_id 
-            AND pb2.status IN ('PREPARING', 'INSTALLING', 'BUILDING')
-        )
-        ORDER BY pb.created_at ASC
-        LIMIT 1
-        FOR UPDATE SKIP LOCKED
-        """, nativeQuery = true)
-    Optional<UUID> findNextClaimableBuildId();
+    @Query("SELECT b.id FROM ProjectBuildEntity b WHERE b.status = com.azhost.build.BuildStatus.QUEUED AND NOT EXISTS (SELECT 1 FROM ProjectBuildEntity b2 WHERE b2.project.id = b.project.id AND b2.status IN (com.azhost.build.BuildStatus.PREPARING, com.azhost.build.BuildStatus.INSTALLING, com.azhost.build.BuildStatus.BUILDING)) ORDER BY b.createdAt ASC")
+    List<UUID> findNextClaimableBuildIds(org.springframework.data.domain.Pageable pageable);
 
     @Modifying
     @Query("UPDATE ProjectBuildEntity b SET b.status = com.azhost.build.BuildStatus.PREPARING, b.claimedBy = :workerId, b.claimedAt = :now, b.heartbeatAt = :now, b.startedAt = :now WHERE b.id = :buildId AND b.status = com.azhost.build.BuildStatus.QUEUED")
