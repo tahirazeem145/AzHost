@@ -62,8 +62,8 @@ public class DistributedBuildClaimIntegrationTest {
     public void testAtomicClaimByMultipleWorkersNoDuplicateClaims() throws Exception {
         // Create 10 queued builds for Project A and Project B
         for (int i = 0; i < 5; i++) {
-            buildRepository.save(new ProjectBuildEntity(projectA, ProjectFramework.STATIC, "NPM", "20", "build", "dist", "ws-a-" + i));
-            buildRepository.save(new ProjectBuildEntity(projectB, ProjectFramework.STATIC, "NPM", "20", "build", "dist", "ws-b-" + i));
+            buildRepository.saveAndFlush(new ProjectBuildEntity(projectA, ProjectFramework.STATIC, "NPM", "20", "build", "dist", "ws-a-" + i));
+            buildRepository.saveAndFlush(new ProjectBuildEntity(projectB, ProjectFramework.STATIC, "NPM", "20", "build", "dist", "ws-b-" + i));
         }
 
         // Simulate 4 concurrent worker threads attempting to claim builds simultaneously
